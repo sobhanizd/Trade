@@ -4,17 +4,29 @@ import type { CostModel } from "@/lib/risk/calculator";
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM (24h)");
 
+/** Starting euro → Toman rate until the user enters today's rate (Settings or the rate box). */
+export const DEFAULT_TOMAN_PER_EUR = 300_000;
+
 export const settingsSchema = z.object({
   displayCurrency: z.enum(["USD", "EUR", "IRT"]).default("USD"),
   /** Optional euro rate typed in by the user ("1 € = X $"); null = automatic (ECB reference rate). */
   fxManual: z.object({ usdPerEur: z.number().min(0.5).max(2).nullable().default(null), updatedAt: z.string().nullable().default(null) }).prefault({}),
   language: z.enum(["en", "fa"]).default("en"),
   theme: z.enum(["system", "light", "dark"]).default("dark"),
-  /** Euro → Toman rate typed in by the user (no reliable free online source for the open-market rate). */
+  /**
+   * Euro → Toman rate typed in by the user (no reliable free online source for the open-market rate).
+   * Starts at DEFAULT_TOMAN_PER_EUR; updatedAt stays null until the user saves their own rate.
+   */
   toman: z
     .object({
       show: z.boolean().default(true),
-      perEur: z.number().positive().max(100_000_000).nullable().default(null),
+      perEur: z
+        .number()
+        .positive()
+        .max(100_000_000)
+        .nullable()
+        .default(DEFAULT_TOMAN_PER_EUR)
+        .transform((v) => v ?? DEFAULT_TOMAN_PER_EUR),
       updatedAt: z.string().nullable().default(null),
     })
     .prefault({}),

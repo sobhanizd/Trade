@@ -49,6 +49,12 @@ a small adapter and registering it in `src/lib/market/providers/index.ts`.
 market data is converted from USD at the ECB reference rate (labelled in the UI;
 percentage changes remain USD-based) and signal pages show an “≈ €” conversion.
 
+**Toman**: there is no reliable free source for the open-market rate, so the
+euro → Toman rate is entered by each user (home page, currency menu or Settings).
+It starts at **1 € = 300,000 Toman** (`DEFAULT_TOMAN_PER_EUR` in
+`src/lib/settings/schema.ts`) and is labelled "starting value" until the user
+saves their own rate; a rate older than 7 days is flagged for an update.
+
 ## Liquidity & data-quality filters
 
 New watchlist assets must pass (Settings → Scanning): minimum market cap

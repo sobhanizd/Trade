@@ -17,6 +17,7 @@ const L = {
     rate: (r: string) => `1 € = ${r}`,
     set: (ago: string) => `you set this ${ago}`,
     stale: (ago: string) => `set ${ago} — please update it`,
+    starting: "starting value — change it to today's rate",
     change: "Change",
     save: "Save",
     cancel: "Cancel",
@@ -32,6 +33,7 @@ const L = {
     rate: (r: string) => `1 یورو = ${r}`,
     set: (ago: string) => `شما ${ago} وارد کردید`,
     stale: (ago: string) => `${ago} وارد شده — لطفاً به‌روز کنید`,
+    starting: "مقدار اولیه — آن را با نرخ امروز عوض کنید",
     change: "تغییر",
     save: "ذخیره",
     cancel: "انصراف",
@@ -83,7 +85,8 @@ export function TomanRateBox({ compact = false, onSaved }: { compact?: boolean; 
   };
 
   const ageDays = tm.updatedAt ? (Date.parse(tm.updatedAt) > 0 ? (new Date().getTime() - Date.parse(tm.updatedAt)) / 86_400_000 : null) : null;
-  const stale = ageDays !== null && ageDays > STALE_DAYS;
+  // No updatedAt = the built-in starting rate, never confirmed by the user.
+  const stale = !tm.updatedAt || (ageDays !== null && ageDays > STALE_DAYS);
   const ago = tm.updatedAt ? timeAgo(new Date(tm.updatedAt), undefined, locale) : "";
 
   const form = (
@@ -116,7 +119,7 @@ export function TomanRateBox({ compact = false, onSaved }: { compact?: boolean; 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span className="font-semibold">{t.rate(formatToman(tm.perEur, locale))}</span>
-            <span className={cn("ms-2 text-xs", stale ? "text-warn-ink" : "text-ink-2")}>{stale ? `⚠️ ${t.stale(ago)}` : t.set(ago)}</span>
+            <span className={cn("ms-2 text-xs", stale ? "text-warn-ink" : "text-ink-2")}>{!tm.updatedAt ? `⚠️ ${t.starting}` : stale ? `⚠️ ${t.stale(ago)}` : t.set(ago)}</span>
           </div>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-ink-2">

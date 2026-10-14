@@ -20,8 +20,14 @@ describe("display currency", () => {
     expect(fx.currency).toBe("IRT");
     expect(fx.rate).toBeCloseTo(0.9 * 292_600);
   });
+  it("new users get Toman prices from the 300,000 starting rate", () => {
+    const fx = fxFrom(with_({ displayCurrency: "IRT" }), 0.9);
+    expect(fx.currency).toBe("IRT");
+    expect(fx.rate).toBeCloseTo(0.9 * 300_000);
+  });
   it("falls back to euro, then dollar, when a rate is missing", () => {
-    expect(fxFrom(with_({ displayCurrency: "IRT" }), 0.9).currency).toBe("EUR");
+    const noToman = { show: true, perEur: null as unknown as number, updatedAt: null };
+    expect(fxFrom(with_({ displayCurrency: "IRT", toman: noToman }), 0.9).currency).toBe("EUR");
     expect(fxFrom(with_({ displayCurrency: "IRT" }), null).currency).toBe("USD");
     expect(fxFrom(with_({ displayCurrency: "EUR" }), null)).toMatchObject({ currency: "USD", rate: 1 });
   });

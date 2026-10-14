@@ -187,11 +187,12 @@ test("my plan updates live when options change", async ({ page }) => {
   await open(page, "/plan");
   await expect(page.getByRole("heading", { name: "My plan" })).toBeVisible();
   await page.getByRole("button", { name: "€100", exact: true }).click();
-  await expect(page.getByText(/You have €100\.00 this month/)).toBeVisible();
+  // New users see Toman next to euros, from the 300,000 Toman-per-euro starting rate.
+  await expect(page.getByText(/You have €100\.00 \(≈ 30,000,000 Toman\) this month/)).toBeVisible();
   const goal = page.getByLabel("Goal (€)");
   const g100 = Number(await goal.inputValue());
   await page.getByRole("button", { name: "€200", exact: true }).click();
-  await expect(page.getByText(/You have €200\.00 this month/)).toBeVisible();
+  await expect(page.getByText(/You have €200\.00 \(≈ 60,000,000 Toman\) this month/)).toBeVisible();
   await expect(goal).toHaveValue(String(g100 * 2));
   await page.getByRole("button", { name: /Any day/ }).click();
   await expect(page.getByText("Is today a good day to buy?")).toBeVisible();
@@ -204,6 +205,10 @@ test("currency menu switches between euro, dollar and Toman", async ({ page }) =
   await open(page, "/dashboard");
   await page.getByRole("button", { name: /^Currency/ }).click();
   const menu = page.getByRole("dialog", { name: "Currency" });
+  // The rate starts at 300,000 Toman per euro and is marked as a starting value until the user saves one.
+  await expect(menu.getByText("1 € = 300,000 Toman")).toBeVisible();
+  await expect(menu.getByText(/starting value/)).toBeVisible();
+  await menu.getByRole("button", { name: "Change" }).click();
   await menu.getByLabel("Price of 1 euro in Toman").fill("292,600");
   await Promise.all([page.waitForEvent("load"), menu.getByRole("button", { name: "Save" }).first().click()]);
   await page.getByRole("button", { name: /^Currency/ }).click();
