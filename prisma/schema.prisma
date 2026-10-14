@@ -1,0 +1,586 @@
+// CryptoPilot AI — relational schema.
+// Read-only analysis app: there are intentionally NO tables for exchange
+// credentials, wallets, private keys, or orders.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Users & auth ─────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  sessions          Session[]
+  settings          UserSettings?
+  watchlist         WatchlistItem[]
+  strategyConfigs   StrategyConfig[]
+  signals           Signal[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
+  priceAlerts       PriceAlert[]
+  backtestRuns      BacktestRun[]
+  paperTrades       PaperTrade[]
+  auditEvents       AuditEvent[]
+  aiMessages        AiMessage[]
+  planPurchases     PlanPurchase[]
+  holdings          Holding[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  // SHA-256(HMAC) of the random cookie token. The raw token is never stored.
+  tokenHash  String   @unique
+  userId     String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  userAgent  String?
+  ipHash     String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  // All settings are validated by zod (src/lib/settings/schema.ts) on read & write.
+  data      Json
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String
+  detail    Json?
+  ipHash    String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+// ───────────────────────────── Assets & market data ─────────────────────
+
+model Asset {
+  id              String    @id @default(cuid())
+  symbol          String    @unique // e.g. BTC
+  name            String
+  coingeckoId     String?   @unique
+  // Analysis pair (USD-denominated stablecoin pair on the candle provider).
+  quote           String    @default("USDT")
+  binanceSymbol   String?   // e.g. BTCUSDT
+  krakenPair      String?   // e.g. XBTUSD
+  marketCapRank   Int?
+  lastValidatedAt DateTime?
+  validation      Json?     // liquidity / data-quality check results
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  watchlistItems WatchlistItem[]
+  candles        Candle[]
+  snapshots      MarketSnapshot[]
+  analysisRuns   AnalysisRun[]
+  signals        Signal[]
+  priceAlerts    PriceAlert[]
+  backtestRuns   BacktestRun[]
+  paperTrades    PaperTrade[]
+  planPurchases  PlanPurchase[]
+  holdings       Holding[]
+}
+
+model WatchlistItem {
+  id       String   @id @default(cuid())
+  userId   String
+  assetId  String
+  position Int      @default(0)
+  addedAt  DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset    Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId])
+  @@index([assetId])
+}
+
+// Closed (and the latest in-progress) OHLCV candles. Retention is enforced by
+// the maintenance job (see src/lib/jobs/maintenance.ts).
+model Candle {
+  id        BigInt   @id @default(autoincrement())
+  assetId   String
+  timeframe String // 1h | 4h | 1d | 1w
+  openTime  DateTime
+  closeTime DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float
+  source    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, timeframe, openTime])
+  @@index([assetId, timeframe, openTime(sort: Desc)])
+}
+
+// Latest snapshot per (kind, key, currency): market overview rows, global
+// market data, sentiment, FX rates. `dataTimestamp` = provider's own timestamp.
+model MarketSnapshot {
+  id            String   @id @default(cuid())
+  kind          String // ASSET | GLOBAL | SENTIMENT | FX
+  key           String // asset symbol, "global", "fear_greed", "USD-EUR"
+  currency      String   @default("USD")
+  assetId       String?
+  data          Json
+  source        String
+  dataTimestamp DateTime?
+  fetchedAt     DateTime @default(now())
+  asset         Asset?   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, key, currency])
+  @@index([fetchedAt])
+}
+
+model ProviderStatus {
+  provider            String    @id
+  lastSuccessAt       DateTime?
+  lastErrorAt         DateTime?
+  lastError           String?
+  consecutiveFailures Int       @default(0)
+  lastLatencyMs       Int?
+  updatedAt           DateTime  @updatedAt
+}
+
+// ───────────────────────────── Strategies & analysis ────────────────────
+
+// Mirror of the code-defined strategy registry (synced on worker start) so that
+// signals and backtests can reference a definition version.
+model StrategyDefinition {
+  id          String   @id // e.g. trend_following
+  name        String
+  version     Int
+  description String
+  rules       Json
+  paramSchema Json
+  updatedAt   DateTime @updatedAt
+
+  configs StrategyConfig[]
+}
+
+model StrategyConfig {
+  id         String             @id @default(cuid())
+  userId     String
+  strategyId String
+  enabled    Boolean            @default(true)
+  params     Json
+  timeframes String[]
+  updatedAt  DateTime           @updatedAt
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategy   StrategyDefinition @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, strategyId])
+}
+
+enum AnalysisStatus {
+  OK
+  NO_SIGNAL
+  ERROR
+}
+
+// One row per (asset, timeframe, last closed candle). The unique key makes
+// scheduled scans idempotent: re-running a scan for the same candle is a no-op.
+model AnalysisRun {
+  id             String         @id @default(cuid())
+  assetId        String
+  timeframe      String
+  candleOpenTime DateTime
+  status         AnalysisStatus
+  dataQuality    Json
+  provider       String?
+  startedAt      DateTime       @default(now())
+  finishedAt     DateTime?
+  error          String?
+  asset          Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  signals        Signal[]
+
+  @@unique([assetId, timeframe, candleOpenTime])
+  @@index([startedAt])
+}
+
+enum SignalState {
+  STRONG_BUY_SETUP
+  POTENTIAL_BUY
+  HOLD_WAIT
+  POTENTIAL_SELL
+  EXIT_SETUP
+  NO_CLEAR_OPPORTUNITY
+  NO_SIGNAL
+}
+
+enum SignalStatus {
+  ACTIVE
+  SUPERSEDED
+  INVALIDATED
+  EXPIRED
+}
+
+model Signal {
+  id               String       @id @default(cuid())
+  userId           String
+  assetId          String
+  pair             String
+  strategyId       String
+  strategyVersion  Int
+  timeframe        String
+  state            SignalState
+  status           SignalStatus @default(ACTIVE)
+  signalAt         DateTime     @default(now())
+  marketDataAt     DateTime // close time of the last closed candle used
+  price            Float // close of that candle (analysis-time price)
+  summary          String
+  conditions       Json // [{id,label,passed,detail}]
+  indicators       Json // indicator values at analysis time
+  entryLow         Float?
+  entryHigh        Float?
+  invalidation     Float?
+  targets          Float[]
+  riskReward       Float?
+  risks            Json // string[]
+  conflicts        Json // string[]
+  dataIssues       Json // string[]
+  rulesMet         Int
+  rulesTotal       Int
+  expiresAt        DateTime?
+  fingerprint      String
+  params           Json
+  evidence         Json? // latest backtest summary for this strategy/asset/timeframe
+  analysisRunId    String?
+  lastEvaluatedAt  DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset            Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  analysisRun      AnalysisRun? @relation(fields: [analysisRunId], references: [id], onDelete: SetNull)
+  statusChanges    SignalStatusChange[]
+  notifications    Notification[]
+  paperTrades      PaperTrade[]
+
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([userId, assetId, timeframe, strategyId, status])
+  @@index([assetId, createdAt(sort: Desc)])
+}
+
+model SignalStatusChange {
+  id         String        @id @default(cuid())
+  signalId   String
+  fromStatus SignalStatus?
+  toStatus   SignalStatus
+  reason     String
+  price      Float?
+  createdAt  DateTime      @default(now())
+  signal     Signal        @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([signalId, createdAt])
+}
+
+// ───────────────────────────── Notifications & alerts ──────────────────
+
+enum NotificationKind {
+  SIGNAL
+  SIGNAL_CHANGE
+  SIGNAL_INVALIDATED
+  PRICE_ALERT
+  VOLATILITY_ALERT
+  SYSTEM
+  TEST
+}
+
+enum DeliveryChannel {
+  TELEGRAM
+  EMAIL
+  WEBPUSH
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  DEFERRED
+  SKIPPED
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  kind       NotificationKind
+  title      String
+  body       String
+  url        String?
+  // Deterministic key; the unique constraint prevents duplicate notifications
+  // for an unchanged signal/alert condition.
+  dedupeKey  String
+  signalId   String?
+  createdAt  DateTime         @default(now())
+  readAt     DateTime?
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signal     Signal?          @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  deliveries NotificationDelivery[]
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model NotificationDelivery {
+  id             String          @id @default(cuid())
+  notificationId String
+  channel        DeliveryChannel
+  status         DeliveryStatus  @default(PENDING)
+  attempts       Int             @default(0)
+  lastError      String?
+  nextAttemptAt  DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  notification   Notification    @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, channel])
+  @@index([status, nextAttemptAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum PriceDirection {
+  ABOVE
+  BELOW
+}
+
+model PriceAlert {
+  id          String         @id @default(cuid())
+  userId      String
+  assetId     String
+  direction   PriceDirection
+  price       Float // USD (pair quote)
+  note        String?
+  active      Boolean        @default(true)
+  triggeredAt DateTime?
+  createdAt   DateTime       @default(now())
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset       Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([userId, active])
+}
+
+// ───────────────────────────── Backtesting & paper trading ─────────────
+
+enum RunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model BacktestRun {
+  id          String    @id @default(cuid())
+  userId      String
+  assetId     String
+  strategyId  String
+  timeframe   String
+  params      Json
+  settings    Json // fees, slippage, risk %, entry policy, split
+  startDate   DateTime
+  endDate     DateTime
+  status      RunStatus @default(RUNNING)
+  candleCount Int       @default(0)
+  dataSource  String?
+  metrics     Json?
+  benchmark   Json?
+  equityCurve Json?
+  warnings    Json?
+  error       String?
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  trades      BacktestTrade[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([assetId, strategyId, timeframe, createdAt(sort: Desc)])
+}
+
+model BacktestTrade {
+  id           String      @id @default(cuid())
+  runId        String
+  segment      String // IN_SAMPLE | OUT_OF_SAMPLE
+  entryTime    DateTime
+  entryPrice   Float
+  exitTime     DateTime
+  exitPrice    Float
+  exitReason   String // STOP | TARGET | EXIT_SIGNAL | TIME | END_OF_DATA
+  quantity     Float
+  stopPrice    Float
+  targetPrice  Float?
+  grossPnl     Float
+  fees         Float
+  slippageCost Float
+  netPnl       Float
+  returnPct    Float
+  rMultiple    Float?
+  entryState   SignalState
+  barsHeld     Int
+  run          BacktestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, entryTime])
+}
+
+enum PaperTradeStatus {
+  OPEN
+  CLOSED
+}
+
+model PaperTrade {
+  id           String           @id @default(cuid())
+  userId       String
+  assetId      String
+  signalId     String?
+  source       String // MANUAL | AUTO_SIGNAL
+  strategyId   String?
+  timeframe    String?
+  status       PaperTradeStatus @default(OPEN)
+  entryPrice   Float
+  entryAt      DateTime
+  quantity     Float
+  stopPrice    Float?
+  targetPrice  Float?
+  feeRate      Float
+  slippageRate Float
+  /// Real all-in cost per side (fraction of money), when the user set buy/sell costs; replaces feeRate/slippageRate.
+  buyCost      Float?
+  sellCost     Float?
+  exitPrice    Float?
+  exitAt       DateTime?
+  exitReason   String?
+  grossPnl     Float?
+  fees         Float?
+  netPnl       Float?
+  notes        String?
+  priceSource  String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset        Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  signal       Signal?          @relation(fields: [signalId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, signalId])
+  @@index([userId, status])
+}
+
+// ───────────────────────────── Jobs, news, AI ───────────────────────────
+
+model JobRun {
+  id         String    @id @default(cuid())
+  job        String
+  status     String // RUNNING | SUCCESS | FAILED | SKIPPED
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  stats      Json?
+  error      String?
+
+  @@index([job, startedAt(sort: Desc)])
+}
+
+model NewsItem {
+  id           String   @id @default(cuid())
+  source       String
+  title        String
+  url          String   @unique
+  publishedAt  DateTime
+  fetchedAt    DateTime @default(now())
+  assets       String[]
+  tags         String[]
+  kind         String // NEWS | OPINION (heuristic)
+  significance String // NORMAL | POTENTIAL (keyword heuristic)
+
+  @@index([publishedAt(sort: Desc)])
+}
+
+model AiMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  question  String
+  answer    String
+  model     String
+  context   Json? // ids of the analysis records used as source of truth
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// ───────────────────────────── Monthly investment plan ──────────────────
+
+// Purchases the user reports having made THEMSELVES on their exchange (the app
+// never buys). Used to track real progress of the monthly plan.
+model PlanPurchase {
+  id          String   @id @default(cuid())
+  userId      String
+  assetId     String
+  /** Plan period this purchase belongs to, e.g. "2026-10". */
+  period      String
+  boughtAt    DateTime @default(now())
+  amountEur   Float
+  priceEur    Float
+  quantity    Float
+  note        String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([userId, period])
+}
+
+/// Coins the user owns, typed in by hand ("My assets"). One row per purchase lot.
+model Holding {
+  id          String    @id @default(cuid())
+  userId      String
+  assetId     String
+  /// Amount of coin (for gold tokens: troy ounces; the page lets the user type grams).
+  quantity    Float
+  /// Optional: price of ONE coin when bought, in `buyCurrency` (only when the user remembers it).
+  buyPrice    Float?
+  /// "EUR" | "USD" | "IRT"
+  buyCurrency String?
+  boughtAt    DateTime?
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
