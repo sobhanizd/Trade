@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CryptoPilot — clear crypto answers</title>
+<meta name="description" content="Read-only crypto analysis in English and Persian: one clear BUY / WAIT / SELL per coin, every price checked on three sources, explained in plain words. Self-hosted, never trades." />
+<meta property="og:title" content="CryptoPilot — clear crypto answers" />
+<meta property="og:description" content="One clear BUY / WAIT / SELL per coin, every price checked on three sources, in English and Persian. Never trades." />
+<meta property="og:image" content="https://sobhanizd.github.io/Trade/images/home.png" />
+<meta name="theme-color" content="#08080e" />
+<link rel="icon" href="images/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    color-scheme: dark;
+    --page: #08080e; --surface: #12121d; --surface-2: #1a1a29; --line: rgba(255,255,255,.09);
+    --ink: #ffffff; --ink-2: #c9c9dc; --ink-3: #8e8ea8;
+    --accent: #caff00; --accent-ink: #08080e; --bad: #ff2d78; --warn: #ffb020; --violet: #7c6cff;
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  html[dir="rtl"] body { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
+  a { color: inherit; }
+  img { max-width: 100%; height: auto; display: block; }
+  /* Grid children may shrink below their content (long code lines, wide tables). */
+  .hero .wrap > *, .split > *, .two > *, .grid > *, .flow > * { min-width: 0; }
+  .wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+  .ltr { direction: ltr; unicode-bidi: isolate; }
+
+  /* nav */
+  header.nav { position: sticky; top: 0; z-index: 20; background: rgba(8,8,14,.78); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+  header.nav .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; font-size: 17px; }
+  .brand img { width: 30px; height: 30px; border-radius: 8px; }
+  nav.links { display: flex; gap: 22px; margin-inline-start: auto; font-size: 14px; color: var(--ink-2); }
+  nav.links a { text-decoration: none; }
+  nav.links a:hover { color: var(--ink); }
+  .lang { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+  .gh { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--ink); color: var(--page); padding: 7px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; }
+  .gh svg { width: 16px; height: 16px; }
+
+  /* hero */
+  .hero { position: relative; padding: 72px 0 40px; }
+  .hero::before { content: ""; position: absolute; inset: -200px 0 auto; height: 760px; pointer-events: none;
+    background: radial-gradient(600px 340px at 18% 30%, rgba(202,255,0,.13), transparent 70%), radial-gradient(640px 380px at 85% 20%, rgba(124,108,255,.18), transparent 70%); }
+  .hero .wrap { position: relative; display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; align-items: center; }
+  .eyebrow { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; }
+  .eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(202,255,0,.18); }
+  h1 { font-size: clamp(36px, 5.2vw, 60px); line-height: 1.06; letter-spacing: -0.03em; margin: 18px 0 18px; font-weight: 800; }
+  html[dir="rtl"] h1 { letter-spacing: 0; line-height: 1.3; }
+  h1 .hl { color: var(--accent); }
+  .lead { font-size: 18px; color: var(--ink-2); margin: 0 0 28px; max-width: 34em; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 13px 20px; border-radius: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--surface); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn:hover { filter: brightness(1.08); }
+  .fine { margin-top: 18px; font-size: 13px; color: var(--ink-3); }
+  .shot { position: relative; }
+  .frame { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 40px 120px -30px rgba(124,108,255,.35), 0 0 0 1px rgba(255,255,255,.02); }
+  .frame .bar { display: flex; gap: 6px; padding: 10px 12px; background: #0e0e17; border-bottom: 1px solid var(--line); }
+  .frame .bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a2a3c; }
+  .phone { position: absolute; width: 30%; bottom: -36px; inset-inline-end: -18px; border-radius: 26px; overflow: hidden; border: 6px solid #1c1c2a; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8); }
+
+  /* sections */
+  section { padding: 72px 0; }
+  .kicker { color: var(--accent); font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+  html[dir="rtl"] .kicker { letter-spacing: 0; }
+  h2 { font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; letter-spacing: -0.02em; margin: 8px 0 14px; }
+  html[dir="rtl"] h2 { letter-spacing: 0; line-height: 1.4; }
+  .sub { color: var(--ink-2); max-width: 46em; margin: 0 0 32px; font-size: 17px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+
+  /* live check */
+  .live { padding: 24px; }
+  .live-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .pulse { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+  .pulse::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); animation: p 1.6s infinite; }
+  @keyframes p { 50% { box-shadow: 0 0 0 6px rgba(202,255,0,0); } 0% { box-shadow: 0 0 0 0 rgba(202,255,0,.5); } }
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 620px; }
+  th { text-align: start; font-size: 12px; color: var(--ink-3); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  td { padding: 14px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .coin { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .coin b { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; color: #111; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .pill.ok { background: rgba(202,255,0,.12); color: var(--accent); }
+  .pill.warn { background: rgba(255,176,32,.14); color: var(--warn); }
+  .pill.bad { background: rgba(255,45,120,.14); color: #ff5c95; }
+  .pill.na { background: var(--surface-2); color: var(--ink-3); }
+  .live-foot { margin-top: 12px; font-size: 13px; color: var(--ink-3); }
+
+  /* features */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .feat { padding: 24px; }
+  .feat .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(202,255,0,.1); color: var(--accent); margin-bottom: 14px; }
+  .feat .ic svg { width: 22px; height: 22px; }
+  .feat h3 { margin: 0 0 6px; font-size: 18px; }
+  .feat p { margin: 0; color: var(--ink-2); font-size: 15px; }
+
+  /* checks */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+  .steps li { display: grid; grid-template-columns: 40px 1fr; gap: 14px; padding: 18px; }
+  .steps .n { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); color: var(--accent); font-weight: 700; }
+  .steps h3 { margin: 0 0 4px; font-size: 16px; }
+  .steps p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .rounded { border-radius: 16px; border: 1px solid var(--line); }
+
+  /* gallery */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .tab { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); padding: 8px 14px; border-radius: 999px; font: inherit; font-size: 14px; cursor: pointer; }
+  .tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .stage { padding: 14px; }
+  .stage img { border-radius: 12px; margin: 0 auto; max-height: 760px; width: auto; }
+  .stage p { margin: 14px 4px 2px; color: var(--ink-2); }
+
+  /* how */
+  .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; counter-reset: s; }
+  .flow .card { padding: 18px; position: relative; }
+  .flow h3 { margin: 0 0 6px; font-size: 15px; }
+  .flow p { margin: 0; color: var(--ink-2); font-size: 14px; }
+  .flow .tag { font-size: 12px; color: var(--accent); font-weight: 600; }
+
+  /* run */
+  pre { margin: 0; background: #0b0b13; border: 1px solid var(--line); border-radius: 14px; padding: 18px; overflow-x: auto; font: 14px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; color: #e6e6f3; direction: ltr; text-align: left; }
+  pre .c { color: var(--ink-3); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .two h3 { margin: 0 0 10px; font-size: 16px; }
+
+  .safe { display: flex; gap: 18px; align-items: flex-start; padding: 26px; border-color: rgba(202,255,0,.25); background: linear-gradient(180deg, rgba(202,255,0,.05), transparent), var(--surface); }
+  .safe svg { flex: none; width: 34px; height: 34px; color: var(--accent); }
+  .safe h3 { margin: 0 0 6px; font-size: 19px; }
+  .safe p { margin: 0; color: var(--ink-2); }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--ink-3); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+
+  @media (max-width: 960px) {
+    .hero .wrap, .split, .two { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr 1fr; }
+    .flow { grid-template-columns: 1fr 1fr; }
+    nav.links { display: none; }
+    .phone { width: 26%; inset-inline-end: 6px; bottom: -24px; }
+    .hero { padding-top: 48px; }
+  }
+  @media (max-width: 600px) {
+    .grid, .flow { grid-template-columns: 1fr; }
+    section { padding: 52px 0; }
+    .gh span { display: none; }
+    .brand span { font-size: 16px; }
+    .phone { border-width: 4px; border-radius: 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .pulse::before { animation: none; } }
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="images/icon.png" alt="" /><span data-i="brand">CryptoPilot</span></a>
+    <nav class="links" aria-label="Sections">
+      <a href="#features" data-i="navFeatures">Features</a>
+      <a href="#checks" data-i="navChecks">Data checks</a>
+      <a href="#screens" data-i="navScreens">Screens</a>
+      <a href="#run" data-i="navRun">Run it</a>
+    </nav>
+    <button class="lang" id="lang" type="button" aria-label="Switch language">فارسی</button>
+    <a class="gh" href="https://github.com/sobhanizd/Trade">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<main id="top">
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow"><span class="dot"></span><span data-i="eyebrow">Read-only crypto analysis · English &amp; فارسی</span></span>
+        <h1 data-i="h1" data-html>One clear answer per coin: <span class="hl">BUY, WAIT or SELL.</span></h1>
+        <p class="lead" data-i="lead">CryptoPilot watches real market data, checks every price on three independent sources, runs transparent written rules and explains the result in plain words. It never trades — no wallet, no keys, no orders. You decide.</p>
+        <div class="ctas">
+          <a class="btn primary" href="https://github.com/sobhanizd/Trade" data-i="ctaCode">See the code on GitHub</a>
+          <a class="btn" href="#run" data-i="ctaRun">Run it yourself</a>
+        </div>
+        <p class="fine" data-i="fine">Self-hosted: your coins, plans and settings stay on your own computer or server.</p>
+      </div>
+      <div class="shot">
+        <div class="frame"><div class="bar"><i></i><i></i><i></i></div><img id="heroShot" src="images/home.png" width="1600" height="1000" alt="CryptoPilot home: one clear step per coin and live prices" /></div>
+        <div class="phone"><img id="heroPhone" src="images/mobile.png" width="600" height="1021" alt="CryptoPilot on a phone" /></div>
+      </div>
+    </div>
+  </div>
+
+  <section id="live">
+    <div class="wrap">
+      <div class="kicker" data-i="liveKicker">Try it here</div>
+      <h2 data-i="liveTitle">Live right now: three sources, one price</h2>
+      <p class="sub" data-i="liveSub">This box asks Binance, Kraken and CoinGecko for today's prices, straight from your browser — the same check the app runs every 10 minutes before it trusts a number.</p>
+      <div class="card live">
+        <div class="live-head">
+          <span class="pulse" id="liveStatus" data-i="liveLoading">Loading real prices…</span>
+          <button class="lang" id="refresh" type="button" data-i="refresh">Refresh</button>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th data-i="thCoin">Coin</th><th>Binance</th><th>Kraken</th><th>CoinGecko</th><th data-i="thDiff">Biggest difference</th><th data-i="thResult">Result</th></tr></thead>
+            <tbody id="liveRows"></tbody>
+          </table>
+        </div>
+        <p class="live-foot" data-i="liveFoot">Real public prices in US dollars. Within 1% = agree · up to 3% = small difference · more = the app gives no signal until the sources agree again. Not investment advice.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="kicker" data-i="featKicker">What it does</div>
+      <h2 data-i="featTitle">Made for people who are not professional traders</h2>
+      <p class="sub" data-i="featSub">Every answer comes with its reasons, the price where the idea is wrong, and what happened in similar moments before. No hype, no made-up numbers.</p>
+      <div class="grid" id="featGrid"></div>
+    </div>
+  </section>
+
+  <section id="checks">
+    <div class="wrap split">
+      <div>
+        <div class="kicker" data-i="chkKicker">Accuracy</div>
+        <h2 data-i="chkTitle">Every number is checked twice</h2>
+        <p class="sub" data-i="chkSub">One exchange can be wrong: a bad trade, a stuck feed, a coin that stopped trading. So CryptoPilot never trusts a single source.</p>
+        <ul class="steps" id="steps"></ul>
+      </div>
+      <img class="rounded" src="images/data-check.png" width="1600" height="776" alt="Data check: Binance, Kraken and CoinGecko prices agree within 0.10%" loading="lazy" />
+    </div>
+  </section>
+
+  <section id="screens">
+    <div class="wrap">
+      <div class="kicker" data-i="scrKicker">Screens</div>
+      <h2 data-i="scrTitle">A tour of the app</h2>
+      <p class="sub" data-i="scrSub">Real screenshots with real market data from a demo account.</p>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div class="card stage"><img id="stageImg" src="images/coin.png" alt="" loading="lazy" /><p id="stageText"></p></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="kicker" data-i="howKicker">How it works</div>
+      <h2 data-i="howTitle">From raw prices to one plain answer</h2>
+      <p class="sub" data-i="howSub">A background worker repeats this every 5 minutes. Only finished candles are analysed, so a signal never changes after the fact.</p>
+      <div class="flow" id="flow"></div>
+    </div>
+  </section>
+
+  <section id="run">
+    <div class="wrap">
+      <div class="kicker" data-i="runKicker">Run it yourself</div>
+      <h2 data-i="runTitle">Your own copy in a few minutes</h2>
+      <p class="sub" data-i="runSub">CryptoPilot is a full web app with a database and a background worker, so it runs on your computer or a small server — not on a static website.</p>
+      <div class="two">
+        <div>
+          <h3 data-i="runDocker">With Docker (easiest)</h3>
+<pre>git clone https://github.com/sobhanizd/Trade.git
+cd Trade
+cp .env.example .env
+<span class="c"># set SESSION_SECRET and POSTGRES_PASSWORD in .env</span>
+docker compose up -d --build
+docker compose run --rm worker \
+  npx tsx scripts/create-user.ts --username alex
+<span class="c"># open http://localhost:3000</span></pre>
+        </div>
+        <div>
+          <h3 data-i="runNode">With Node.js + PostgreSQL</h3>
+<pre>git clone https://github.com/sobhanizd/Trade.git
+cd Trade &amp;&amp; npm install
+cp .env.example .env   <span class="c"># DATABASE_URL, SESSION_SECRET</span>
+npx prisma migrate deploy &amp;&amp; npm run db:seed
+npm run user:create -- --username alex
+npm run build &amp;&amp; npm start   <span class="c"># web app</span>
+npm run worker               <span class="c"># 2nd terminal</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="card safe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+        <div>
+          <h3 data-i="safeTitle">It never trades — on purpose</h3>
+          <p data-i="safeText">No wallet connection, no seed phrases, no exchange API keys and no order buttons. CryptoPilot is a decision-support tool: it explains, you decide and you place every order yourself. Nothing here is financial advice and no result is guaranteed — crypto prices can fall a lot.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span data-i="foot">© 2026 Sobhan Izadi · All rights reserved</span>
+    <span><a href="https://github.com/sobhanizd/Trade">github.com/sobhanizd/Trade</a></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const T = {
+    en: {
+      brand: "CryptoPilot", navFeatures: "Features", navChecks: "Data checks", navScreens: "Screens", navRun: "Run it",
+      eyebrow: "Read-only crypto analysis · English & فارسی",
+      h1: 'One clear answer per coin: <span class="hl">BUY, WAIT or SELL.</span>',
+      lead: "CryptoPilot watches real market data, checks every price on three independent sources, runs transparent written rules and explains the result in plain words. It never trades — no wallet, no keys, no orders. You decide.",
+      ctaCode: "See the code on GitHub", ctaRun: "Run it yourself",
+      fine: "Self-hosted: your coins, plans and settings stay on your own computer or server.",
+      liveKicker: "Try it here", liveTitle: "Live right now: three sources, one price",
+      liveSub: "This box asks Binance, Kraken and CoinGecko for today's prices, straight from your browser — the same check the app runs every 10 minutes before it trusts a number.",
+      liveLoading: "Loading real prices…", liveOk: (t) => `Checked at ${t}`, liveFail: "Could not reach the exchanges from your browser right now.",
+      refresh: "Refresh", thCoin: "Coin", thDiff: "Biggest difference", thResult: "Result",
+      res: { AGREE: "Agree", SMALL: "Small difference", DISAGREE: "Disagree", NA: "Not enough sources" },
+      liveFoot: "Real public prices in US dollars. Within 1% = agree · up to 3% = small difference · more = the app gives no signal until the sources agree again. Not investment advice.",
+      featKicker: "What it does", featTitle: "Made for people who are not professional traders",
+      featSub: "Every answer comes with its reasons, the price where the idea is wrong, and what happened in similar moments before. No hype, no made-up numbers.",
+      feats: [
+        ["target", "BUY / WAIT / SELL in plain words", "Five written strategies look at the daily chart, the 4-hour chart checks the timing, and you get one answer with the reasons behind it."],
+        ["shield", "Every price checked twice", "Prices are compared across Binance, Kraken and CoinGecko. If they disagree, the app gives no signal instead of a wrong one."],
+        ["eye", "A second opinion on each signal", "Each strategy runs again on a second exchange's data. A BUY only counts the setups that exchange does not contradict."],
+        ["chart", "Market picture", "Up, down or sideways for days, weeks and months, trend lines on the chart, and what happened after similar moments since 2017 — history, not a promise."],
+        ["calendar", "Monthly plan", "Invest a fixed amount every month: what to buy and when, progress toward your goal, and an honest test of the plan on past prices."],
+        ["flask", "Backtests & practice trades", "Test a strategy on years of real candles with fees and slippage, or practise with pretend money before using real money."],
+        ["globe", "English & Persian, Euro & Toman", "A full right-to-left Persian interface. Prices in dollars, euros or Toman — the Toman rate starts at 1 € = 300,000 and you can change it any time."],
+        ["bell", "Alerts where you are", "Telegram, email or browser notifications for new signals, price levels you choose and unusually large moves."],
+        ["lock", "Private and self-hosted", "Runs on your own computer or a small server. Your coins, plans and settings never leave it."],
+      ],
+      chkKicker: "Accuracy", chkTitle: "Every number is checked twice",
+      chkSub: "One exchange can be wrong: a bad trade, a stuck feed, a coin that stopped trading. So CryptoPilot never trusts a single source.",
+      steps: [
+        ["Live price", "Every 10 minutes each coin's price is compared on Binance, Kraken and CoinGecko. More than 3% apart is flagged on the home page."],
+        ["Chart data", "Before each analysis the last 100 candle closes are compared with a second exchange. A big mismatch means no signal, not a wrong one."],
+        ["Second opinion", "Every strategy runs again on the second exchange's candles. The BUY answer only counts setups that are confirmed."],
+      ],
+      scrKicker: "Screens", scrTitle: "A tour of the app", scrSub: "Real screenshots with real market data from a demo account.",
+      shots: [
+        ["coin", "Coin page", "Each coin gets plain advice, when to buy, price alerts you can set with one tap, and what happened next in similar moments."],
+        ["chart", "Chart with zones", "Colored zones show where buying is good, too expensive, and where the safety exit is — with a worked example in money."],
+        ["market-picture", "Market picture", "Bullish, bearish or sideways for days, weeks and months, plus month-by-month changes."],
+        ["signal", "Signal explained", "Every signal lists what was checked, the buy zone, safety exit and target — and whether a second exchange confirms it."],
+        ["plan", "Monthly plan", "Choose an amount, a day and a style; the app tells you what to buy each month."],
+        ["backtest", "Backtest", "Honest results on past prices with fees, compared with simply buying and holding."],
+        ["home-fa", "فارسی", "The whole app in Persian, right to left, with Toman prices."],
+        ["mobile-coin", "Phone", "Installs on iPhone and Android like an app, with a bottom tab bar."],
+      ],
+      howKicker: "How it works", howTitle: "From raw prices to one plain answer",
+      howSub: "A background worker repeats this every 5 minutes. Only finished candles are analysed, so a signal never changes after the fact.",
+      flow: [
+        ["1", "Collect", "Prices and candles from Binance, Kraken and CoinGecko, plus market mood and headlines."],
+        ["2", "Check", "Gaps, stale data, impossible values — and the three-source comparison."],
+        ["3", "Analyse", "Five written strategies with indicators like trend, momentum and volatility."],
+        ["4", "Decide", "BUY / WAIT / SELL with reasons, safety exit, target and a history check."],
+        ["5", "Tell you", "On the home page and, if you like, by Telegram, email or notification."],
+      ],
+      runKicker: "Run it yourself", runTitle: "Your own copy in a few minutes",
+      runSub: "CryptoPilot is a full web app with a database and a background worker, so it runs on your computer or a small server — not on a static website.",
+      runDocker: "With Docker (easiest)", runNode: "With Node.js + PostgreSQL",
+      safeTitle: "It never trades — on purpose",
+      safeText: "No wallet connection, no seed phrases, no exchange API keys and no order buttons. CryptoPilot is a decision-support tool: it explains, you decide and you place every order yourself. Nothing here is financial advice and no result is guaranteed — crypto prices can fall a lot.",
+      foot: "© 2026 Sobhan Izadi · All rights reserved", other: "فارسی",
+    },
+    fa: {
+      brand: "کریپتوپایلوت", navFeatures: "امکانات", navChecks: "بررسی داده", navScreens: "تصاویر", navRun: "اجرا",
+      eyebrow: "تحلیل ارز دیجیتال، فقط خواندنی · فارسی و English",
+      h1: 'برای هر ارز یک جواب روشن: <span class="hl">خرید، صبر یا فروش.</span>',
+      lead: "کریپتوپایلوت داده‌های واقعی بازار را دنبال می‌کند، هر قیمت را با سه منبع مستقل بررسی می‌کند، قوانین نوشته‌شده و شفاف را اجرا می‌کند و نتیجه را به زبان ساده توضیح می‌دهد. هرگز معامله نمی‌کند — نه کیف پول، نه کلید، نه سفارش. تصمیم با شماست.",
+      ctaCode: "کد را در گیت‌هاب ببینید", ctaRun: "خودتان اجرا کنید",
+      fine: "روی سیستم خودتان اجرا می‌شود: ارزها، برنامه‌ها و تنظیمات شما روی کامپیوتر یا سرور خودتان می‌ماند.",
+      liveKicker: "همین‌جا امتحان کنید", liveTitle: "همین الان: سه منبع، یک قیمت",
+      liveSub: "این جدول قیمت‌های امروز را مستقیم از مرورگر شما از Binance، Kraken و CoinGecko می‌گیرد — همان بررسی‌ای که برنامه هر ۱۰ دقیقه پیش از اعتماد به یک عدد انجام می‌دهد.",
+      liveLoading: "در حال گرفتن قیمت‌های واقعی…", liveOk: (t) => `بررسی‌شده در ساعت ${t}`, liveFail: "الان از مرورگر شما نشد به صرافی‌ها وصل شد.",
+      refresh: "به‌روزرسانی", thCoin: "ارز", thDiff: "بیشترین اختلاف", thResult: "نتیجه",
+      res: { AGREE: "هم‌نظر", SMALL: "اختلاف کم", DISAGREE: "ناهمخوان", NA: "منبع کافی نیست" },
+      liveFoot: "قیمت‌های واقعی و عمومی به دلار. تا ۱٪ = هم‌نظر · تا ۳٪ = اختلاف کم · بیشتر از آن = برنامه تا یکی شدن دوبارهٔ منبع‌ها سیگنالی نمی‌دهد. این توصیهٔ مالی نیست.",
+      featKicker: "چه کار می‌کند", featTitle: "ساخته‌شده برای کسانی که معامله‌گر حرفه‌ای نیستند",
+      featSub: "هر جواب همراه با دلیل‌هایش است، قیمتی که در آن ایده باطل می‌شود، و این‌که در موقعیت‌های مشابه قبلی چه شد. بدون هیاهو، بدون عدد ساختگی.",
+      feats: [
+        ["target", "خرید / صبر / فروش به زبان ساده", "پنج روش نوشته‌شده نمودار روزانه را بررسی می‌کنند، نمودار ۴ ساعته زمان را می‌سنجد، و شما یک جواب با دلیل‌هایش می‌گیرید."],
+        ["shield", "هر قیمت دوبار بررسی می‌شود", "قیمت‌ها بین Binance، Kraken و CoinGecko مقایسه می‌شوند. اگر هم‌نظر نباشند، برنامه به‌جای سیگنال اشتباه، سیگنالی نمی‌دهد."],
+        ["eye", "نظر دوم برای هر سیگنال", "هر روش دوباره روی داده‌های یک صرافی دیگر اجرا می‌شود. «خرید» فقط فرصت‌هایی را می‌شمارد که آن صرافی ردشان نکند."],
+        ["chart", "تصویر بازار", "صعودی، نزولی یا درجا برای روزها، هفته‌ها و ماه‌ها، خط‌های روند روی نمودار، و این‌که از ۲۰۱۷ بعد از موقعیت‌های مشابه چه شد — تاریخچه، نه وعده."],
+        ["calendar", "برنامهٔ ماهانه", "هر ماه مبلغ ثابتی سرمایه‌گذاری کنید: چه بخرید و کی، پیشرفت تا هدف، و آزمایش صادقانهٔ برنامه روی قیمت‌های گذشته."],
+        ["flask", "بک‌تست و معاملهٔ تمرینی", "یک روش را روی سال‌ها دادهٔ واقعی با کارمزد و لغزش قیمت آزمایش کنید، یا اول با پول فرضی تمرین کنید."],
+        ["globe", "فارسی و انگلیسی، یورو و تومان", "رابط کامل فارسی و راست‌به‌چپ. قیمت به دلار، یورو یا تومان — نرخ تومان از ۱ یورو = ۳۰۰٬۰۰۰ تومان شروع می‌شود و هر وقت بخواهید عوضش می‌کنید."],
+        ["bell", "هشدار هر جا که هستید", "تلگرام، ایمیل یا اعلان مرورگر برای سیگنال‌های تازه، قیمت‌هایی که خودتان انتخاب می‌کنید و حرکت‌های غیرعادی."],
+        ["lock", "خصوصی و روی سیستم خودتان", "روی کامپیوتر یا یک سرور کوچک خودتان اجرا می‌شود. ارزها، برنامه‌ها و تنظیمات شما از آن بیرون نمی‌رود."],
+      ],
+      chkKicker: "دقت", chkTitle: "هر عدد دوبار بررسی می‌شود",
+      chkSub: "یک صرافی ممکن است اشتباه کند: یک معاملهٔ عجیب، دادهٔ گیرکرده، ارزی که دیگر معامله نمی‌شود. برای همین کریپتوپایلوت هیچ‌وقت فقط به یک منبع اعتماد نمی‌کند.",
+      steps: [
+        ["قیمت لحظه‌ای", "هر ۱۰ دقیقه قیمت هر ارز در Binance، Kraken و CoinGecko مقایسه می‌شود. اختلاف بیش از ۳٪ در صفحهٔ اصلی نشان داده می‌شود."],
+        ["داده‌های نمودار", "پیش از هر تحلیل، ۱۰۰ قیمت بسته‌شدن آخر با یک صرافی دوم مقایسه می‌شود. اختلاف زیاد یعنی بدون سیگنال، نه سیگنال اشتباه."],
+        ["نظر دوم", "هر روش دوباره روی کندل‌های صرافی دوم اجرا می‌شود. جواب «خرید» فقط فرصت‌های تأییدشده را حساب می‌کند."],
+      ],
+      scrKicker: "تصاویر", scrTitle: "گشتی در برنامه", scrSub: "تصاویر واقعی با دادهٔ واقعی بازار از یک حساب نمایشی.",
+      shots: [
+        ["coin-fa", "صفحهٔ ارز", "برای هر ارز توصیهٔ ساده، زمان خرید، هشدار قیمت با یک لمس، و این‌که در موقعیت‌های مشابه بعدش چه شد."],
+        ["chart", "نمودار با محدوده‌ها", "محدوده‌های رنگی نشان می‌دهند کجا خرید خوب است، کجا گران است و حد ضرر کجاست — با یک مثال پولی."],
+        ["market-picture", "تصویر بازار", "صعودی، نزولی یا درجا برای روزها، هفته‌ها و ماه‌ها، به‌علاوهٔ تغییرات ماه‌به‌ماه."],
+        ["signal", "توضیح سیگنال", "هر سیگنال نشان می‌دهد چه چیزهایی بررسی شد، محدودهٔ خرید، حد ضرر و هدف سود — و این‌که صرافی دوم آن را تأیید می‌کند یا نه."],
+        ["plan", "برنامهٔ ماهانه", "مبلغ، روز و سبک را انتخاب کنید؛ برنامه هر ماه می‌گوید چه بخرید."],
+        ["backtest", "بک‌تست", "نتیجهٔ صادقانه روی قیمت‌های گذشته با کارمزد، در مقایسه با خریدن و نگه داشتن."],
+        ["home", "English", "همهٔ برنامه به انگلیسی هم هست."],
+        ["mobile-coin", "موبایل", "مثل یک اپ روی آیفون و اندروید نصب می‌شود، با نوار پایین صفحه."],
+      ],
+      howKicker: "چطور کار می‌کند", howTitle: "از قیمت خام تا یک جواب ساده",
+      howSub: "یک برنامهٔ پس‌زمینه این کار را هر ۵ دقیقه تکرار می‌کند. فقط کندل‌های بسته‌شده تحلیل می‌شوند، پس سیگنال بعداً عوض نمی‌شود.",
+      flow: [
+        ["۱", "جمع‌آوری", "قیمت و کندل از Binance، Kraken و CoinGecko، به‌علاوهٔ حال‌وهوای بازار و خبرها."],
+        ["۲", "بررسی", "جای خالی، دادهٔ قدیمی، عدد غیرممکن — و مقایسهٔ سه منبع."],
+        ["۳", "تحلیل", "پنج روش نوشته‌شده با شاخص‌هایی مثل روند، شتاب و نوسان."],
+        ["۴", "تصمیم", "خرید / صبر / فروش با دلیل، حد ضرر، هدف سود و بررسی تاریخچه."],
+        ["۵", "خبر دادن", "در صفحهٔ اصلی و اگر بخواهید با تلگرام، ایمیل یا اعلان."],
+      ],
+      runKicker: "خودتان اجرا کنید", runTitle: "نسخهٔ خودتان در چند دقیقه",
+      runSub: "کریپتوپایلوت یک برنامهٔ تحت وب کامل با پایگاه داده و برنامهٔ پس‌زمینه است، پس روی کامپیوتر یا یک سرور کوچک اجرا می‌شود — نه روی یک وب‌سایت ساده.",
+      runDocker: "با Docker (ساده‌ترین)", runNode: "با Node.js و PostgreSQL",
+      safeTitle: "هرگز معامله نمی‌کند — عمداً",
+      safeText: "نه اتصال کیف پول، نه عبارت بازیابی، نه کلید API صرافی و نه دکمهٔ سفارش. کریپتوپایلوت ابزار کمک به تصمیم است: توضیح می‌دهد، شما تصمیم می‌گیرید و هر سفارش را خودتان ثبت می‌کنید. هیچ‌چیز این‌جا توصیهٔ مالی نیست و هیچ نتیجه‌ای تضمینی نیست — قیمت ارزها می‌تواند خیلی پایین بیاید.",
+      foot: "© ۲۰۲۶ سبحان ایزدی · همهٔ حقوق محفوظ است", other: "English",
+    },
+  };
+
+  const ICONS = {
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    chart: '<path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 15l4-4 3 3 5-6"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    flask: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 001.8 3h10.4a2 2 0 001.8-3l-5-9V3"/><path d="M7.5 15h9"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>',
+    bell: '<path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 004 0"/>',
+    lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 118 0v3"/>',
+  };
+  const svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  let lang = "en";
+  try { lang = localStorage.getItem("cp-site-lang") || ((navigator.language || "").startsWith("fa") ? "fa" : "en"); } catch { /* storage unavailable */ }
+  let shotIndex = 0;
+  let lastLive = null;
+
+  function render() {
+    const t = T[lang];
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+    document.querySelectorAll("[data-i]").forEach((el) => {
+      const v = t[el.dataset.i];
+      if (typeof v !== "string") return;
+      if (el.hasAttribute("data-html")) el.innerHTML = v; else el.textContent = v;
+    });
+    document.getElementById("lang").textContent = t.other;
+    document.getElementById("heroShot").src = lang === "fa" ? "images/home-fa.png" : "images/home.png";
+    document.getElementById("featGrid").innerHTML = t.feats.map(([ic, h, p]) => `<div class="card feat"><div class="ic">${svg(ic)}</div><h3>${esc(h)}</h3><p>${esc(p)}</p></div>`).join("");
+    document.getElementById("steps").innerHTML = t.steps.map(([h, p], i) => `<li class="card"><span class="n">${lang === "fa" ? "۱۲۳"[i] : i + 1}</span><div><h3>${esc(h)}</h3><p>${esc(p)}</p></div></li>`).join("");
+    document.getElementById("flow").innerHTML = t.flow.map(([n, h, p]) => `<div class="card"><div class="tag">${esc(n)}</div><h3>${esc(h)}</h3><p>${esc(p)}</p></div>`).join("");
+    document.getElementById("tabs").innerHTML = t.shots.map(([, label], i) => `<button class="tab" role="tab" type="button" data-k="${i}" aria-selected="${i === shotIndex}">${esc(label)}</button>`).join("");
+    showShot(shotIndex);
+    if (lastLive) drawLive(lastLive); else document.getElementById("liveStatus").textContent = t.liveLoading;
+  }
+  function showShot(i) {
+    shotIndex = i;
+    const [file, label, text] = T[lang].shots[i];
+    const img = document.getElementById("stageImg");
+    img.src = `images/${file}.png`;
+    img.alt = label;
+    img.style.maxWidth = file.startsWith("mobile") ? "380px" : "100%";
+    document.getElementById("stageText").textContent = text;
+    document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(Number(b.dataset.k) === i)));
+  }
+  document.getElementById("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) showShot(Number(b.dataset.k)); });
+  document.getElementById("lang").addEventListener("click", () => {
+    lang = lang === "en" ? "fa" : "en";
+    try { localStorage.setItem("cp-site-lang", lang); } catch { /* storage unavailable */ }
+    render();
+  });
+
+  /* ---------- live three-source price check (real public data, nothing simulated) ---------- */
+  const COINS = [
+    { sym: "BTC", en: "Bitcoin", fa: "بیت‌کوین", color: "#f7931a", bin: "BTCUSDT", kra: ["XBTUSD", "XXBTZUSD"], cg: "bitcoin" },
+    { sym: "ETH", en: "Ethereum", fa: "اتریوم", color: "#8a92f9", bin: "ETHUSDT", kra: ["ETHUSD", "XETHZUSD"], cg: "ethereum" },
+    { sym: "PAXG", en: "Gold (PAXG)", fa: "طلا (PAXG)", color: "#e3c565", bin: "PAXGUSDT", kra: ["PAXGUSD"], cg: "pax-gold" },
+  ];
+  const getJson = async (url) => { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
+  async function binance() {
+    const q = encodeURIComponent(JSON.stringify(COINS.map((c) => c.bin)));
+    for (const host of ["https://api.binance.com", "https://data-api.binance.vision"]) {
+      try { return new Map((await getJson(`${host}/api/v3/ticker/price?symbols=${q}`)).map((r) => [r.symbol, Number(r.price)])); } catch { /* try the mirror */ }
+    }
+    throw new Error("binance");
+  }
+  async function kraken() {
+    const res = await getJson(`https://api.kraken.com/0/public/Ticker?pair=${COINS.map((c) => c.kra[0]).join(",")}`);
+    if (res.error && res.error.length) throw new Error("kraken");
+    return new Map(COINS.map((c) => { const k = c.kra.find((x) => res.result && res.result[x]); return [c.sym, k ? Number(res.result[k].c[0]) : NaN]; }));
+  }
+  async function coingecko() {
+    const res = await getJson(`https://api.coingecko.com/api/v3/simple/price?ids=${COINS.map((c) => c.cg).join(",")}&vs_currencies=usd`);
+    return new Map(COINS.map((c) => [c.sym, Number(res[c.cg] && res[c.cg].usd)]));
+  }
+  const fmt = (v) => Number.isFinite(v) && v > 0 ? "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+  async function loadLive() {
+    document.getElementById("liveStatus").textContent = T[lang].liveLoading;
+    const [b, k, g] = await Promise.allSettled([binance(), kraken(), coingecko()]);
+    const val = (r, key) => (r.status === "fulfilled" ? r.value.get(key) : NaN);
+    lastLive = {
+      at: new Date(),
+      rows: COINS.map((c) => {
+        const prices = [val(b, c.bin), val(k, c.sym), val(g, c.sym)];
+        const ok = prices.filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
+        const mid = ok.length ? (ok.length % 2 ? ok[(ok.length - 1) / 2] : (ok[ok.length / 2 - 1] + ok[ok.length / 2]) / 2) : NaN;
+        const spread = ok.length >= 2 ? ((ok[ok.length - 1] - ok[0]) / mid) * 100 : NaN;
+        const verdict = ok.length < 2 ? "NA" : spread <= 1 ? "AGREE" : spread <= 3 ? "SMALL" : "DISAGREE";
+        return { c, prices, spread, verdict };
+      }),
+      failed: [b, k, g].every((r) => r.status === "rejected"),
+    };
+    drawLive(lastLive);
+  }
+  function drawLive(d) {
+    const t = T[lang];
+    const cls = { AGREE: "ok", SMALL: "warn", DISAGREE: "bad", NA: "na" };
+    document.getElementById("liveRows").innerHTML = d.rows.map(({ c, prices, spread, verdict }) =>
+      `<tr><td><span class="coin"><b style="background:${c.color}">${c.sym[0]}</b>${esc(lang === "fa" ? c.fa : c.en)}</span></td>` +
+      prices.map((p) => `<td class="num ltr">${fmt(p)}</td>`).join("") +
+      `<td class="num ltr">${Number.isFinite(spread) ? spread.toFixed(2) + "%" : "—"}</td><td><span class="pill ${cls[verdict]}">${esc(t.res[verdict])}</span></td></tr>`).join("");
+    const time = d.at.toLocaleTimeString(lang === "fa" ? "fa-IR" : "en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    document.getElementById("liveStatus").textContent = d.failed ? t.liveFail : t.liveOk(time);
+  }
+  document.getElementById("refresh").addEventListener("click", () => void loadLive());
+
+  render();
+  void loadLive();
+  setInterval(() => { if (!document.hidden) void loadLive(); }, 60_000);
+})();
+</script>
+</body>
+</html>

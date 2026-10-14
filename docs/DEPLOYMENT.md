@@ -18,7 +18,7 @@ cost.
 ## 2. Configure
 
 ```bash
-git clone <your repo> /opt/cryptopilot && cd /opt/cryptopilot   # or copy the folder
+git clone https://github.com/sobhanizd/Trade.git /opt/cryptopilot && cd /opt/cryptopilot
 cp .env.example .env && chmod 600 .env
 ```
 

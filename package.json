@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "CryptoPilot AI — read-only crypto market analysis and signal decision-support app. Never places trades.",
+  "author": "Sobhan Izadi (https://github.com/sobhanizd)",
+  "license": "UNLICENSED",
+  "homepage": "https://sobhanizd.github.io/Trade/",
+  "repository": { "type": "git", "url": "https://github.com/sobhanizd/Trade.git" },
   "type": "module",
   "engines": {
     "node": ">=20.19"
