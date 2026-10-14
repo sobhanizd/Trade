@@ -270,6 +270,7 @@ model Signal {
   fingerprint      String
   params           Json
   evidence         Json? // latest backtest summary for this strategy/asset/timeframe
+  sourceCheck      Json? // second-exchange cross-check (see src/lib/market/crosscheck.ts)
   analysisRunId    String?
   lastEvaluatedAt  DateTime     @default(now())
   createdAt        DateTime     @default(now())

@@ -11,7 +11,10 @@ import { db } from "@/lib/db";
 import { fmtBig, fmtDate, fmtMoney, fmtPrice, perGram, timeAgo } from "@/lib/format";
 import { paperSummary } from "@/lib/paper/service";
 import { getStrategy } from "@/lib/strategies/registry";
-import { getMarketView, lastScan, providerHealth } from "@/lib/views";
+import { getMarketView, lastScan, priceChecks, providerHealth } from "@/lib/views";
+import { PriceCheckSummary } from "@/components/source-check";
+import { sourceLabel } from "@/lib/market/crosscheck";
+import { CANDLE_PROVIDER_IDS, candleProviders } from "@/lib/market/providers";
 import type { Dict } from "@/lib/i18n";
 import { getL, getLocale } from "@/lib/i18n/server";
 import { strategyName, timeframeWord } from "@/lib/plain";
@@ -21,6 +24,8 @@ const L = {
     title: "Dashboard",
     workerDown: "Background scans are not running — start the worker (npm run worker).",
     providersDown: (p: string) => `${p} temporarily unavailable; showing the latest stored data.`,
+    checkTitle: "Prices can't be double-checked right now",
+    checkDown: (p: string) => `${p} (the second exchange used to double-check prices) is not responding. Your prices are still up to date from the main sources, but they can't be double-checked until it's back.`,
     descA: "Real market data with timestamps. Last successful scan: ",
     descB: ".",
     ask: "Ask the explainer",
@@ -64,6 +69,8 @@ const L = {
     title: "داشبورد",
     workerDown: "بررسی‌های خودکار در پس‌زمینه اجرا نمی‌شوند — برنامهٔ پس‌زمینه (worker) را اجرا کنید (npm run worker).",
     providersDown: (p: string) => `${p} موقتاً در دسترس نیست؛ آخرین داده‌های ذخیره‌شده نمایش داده می‌شوند.`,
+    checkTitle: "فعلاً نمی‌شود قیمت‌ها را دوباره بررسی کرد",
+    checkDown: (p: string) => `${p} (صرافی دومی که قیمت‌ها با آن دوباره بررسی می‌شوند) جواب نمی‌دهد. قیمت‌های شما هنوز از منبع‌های اصلی به‌روز می‌شوند، ولی تا وقتی برنگردد نمی‌شود آن‌ها را دوباره بررسی کرد.`,
     descA: "دادهٔ واقعی بازار همراه با زمان. آخرین بررسی موفق: ",
     descB: ".",
     ask: "از توضیح‌دهنده بپرسید",
@@ -125,7 +132,12 @@ export default async function Dashboard() {
     db().paperTrade.findMany({ where: { userId: user.id } }),
   ]);
   const cur = view.currency;
-  const failing = providers.filter((p) => !p.ok);
+  // A failing cross-check exchange does not make the main data stale — it only means prices can't be double-checked.
+  const mainCandles = candleProviders(view.settings.dataProviders.candleOrder)[0]?.id;
+  const isCheckSource = (id: string) => CANDLE_PROVIDER_IDS.includes(id) && id !== mainCandles;
+  const failing = providers.filter((p) => !p.ok && !isCheckSource(p.provider));
+  const failingCheck = providers.filter((p) => !p.ok && isCheckSource(p.provider));
+  const checks = await priceChecks(view.rows.map((r) => r.symbol));
   // eslint-disable-next-line react-hooks/purity -- server component: rendered once per request
   const now = Date.now();
   const scanStale = !scan.lastSuccess || now - scan.lastSuccess.getTime() > 20 * 60_000;
@@ -140,6 +152,8 @@ export default async function Dashboard() {
         view={view}
         lastScan={scan.lastSuccess}
         providerProblem={scanStale ? t.workerDown : failing.length ? t.providersDown(failing.map((p) => p.provider).join(fa ? "، " : ", ")) : null}
+        checkProblem={!scanStale && failingCheck.length ? { title: t.checkTitle, body: t.checkDown(failingCheck.map((p) => sourceLabel(p.provider)).join(fa ? "، " : ", ")) } : null}
+        dataCheck={<PriceCheckSummary checks={checks} symbols={view.rows.map((r) => r.symbol)} />}
         paper={{ open: ps.open, netPnl: ps.netPnl }}
         urgent={await urgentForWatchlist(user.id).catch(() => [])}
         advice={await adviceForWatchlist(user.id).catch(() => null)}
@@ -164,6 +178,12 @@ export default async function Dashboard() {
           {failing.map((p) => `${p.provider}: ${p.lastError ?? t.failing}`).join(" · ")}{t.see}<Link className="underline" href="/status">{t.status}</Link>.
         </Alert>
       )}
+      {failingCheck.length > 0 && (
+        <Alert tone="info" className="mb-4" title={t.checkTitle}>
+          {t.checkDown(failingCheck.map((p) => sourceLabel(p.provider)).join(fa ? "، " : ", "))}{t.see}<Link className="underline" href="/status">{t.status}</Link>.
+        </Alert>
+      )}
+      <PriceCheckSummary checks={checks} symbols={view.rows.map((r) => r.symbol)} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
         {["BTC", "ETH"].map((sym) => {

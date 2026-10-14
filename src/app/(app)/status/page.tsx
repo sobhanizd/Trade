@@ -8,6 +8,8 @@ import { errorText } from "@/lib/i18n/texts";
 import { TIMEFRAME_MS, type Timeframe } from "@/lib/market/types";
 import { timeframeWord } from "@/lib/plain";
 import { getSystemStatus } from "@/lib/status";
+import { sourceLabel } from "@/lib/market/crosscheck";
+import { priceChecks, type PriceCheckRow } from "@/lib/views";
 
 const FA_JOB_STATUS: Record<string, string> = { SUCCESS: "موفق", FAILED: "ناموفق", RUNNING: "در حال اجرا" };
 const FA_INTEGRATION: Record<string, string> = {
@@ -42,6 +44,13 @@ const L = {
     lastError: "Last error",
     healthy: "healthy",
     failures: (n: number) => `${n} failure(s)`,
+    cross: "Price cross-check",
+    crossDesc: "Each coin's live price from Binance, Kraken and CoinGecko. Over 1% apart = small difference; over 3% = the sources disagree.",
+    spread: "Biggest difference",
+    answered: "Sources",
+    checkedAt: "Checked",
+    crossVerdict: { AGREE: "agree", SMALL_DIFF: "small difference", DISAGREE: "disagree", SINGLE_SOURCE: "one source only" } as Record<string, string>,
+    noCross: "No cross-check yet — it runs with the next market snapshot.",
     freshness: "Candle freshness",
     freshnessDesc: "Latest stored candle close per asset/timeframe. Stale = older than two intervals.",
     asset: "Asset",
@@ -80,6 +89,13 @@ const L = {
     lastError: "آخرین خطا",
     healthy: "سالم",
     failures: (n: number) => `${n} خطای پشت‌سرهم`,
+    cross: "مقایسهٔ قیمت بین منبع‌ها",
+    crossDesc: "قیمت لحظه‌ای هر ارز از Binance، Kraken و CoinGecko. بیش از ۱٪ اختلاف = اختلاف کم؛ بیش از ۳٪ = منبع‌ها هم‌نظر نیستند.",
+    spread: "بیشترین اختلاف",
+    answered: "منبع‌ها",
+    checkedAt: "بررسی",
+    crossVerdict: { AGREE: "هم‌نظر", SMALL_DIFF: "اختلاف کم", DISAGREE: "ناهمخوان", SINGLE_SOURCE: "فقط یک منبع" } as Record<string, string>,
+    noCross: "هنوز مقایسه‌ای انجام نشده — با به‌روزرسانی بعدی بازار انجام می‌شود.",
     freshness: "به‌روز بودن قیمت‌ها",
     freshnessDesc: "آخرین کندل (شمع قیمت) ذخیره‌شده برای هر ارز و نمودار. «قدیمی» یعنی از دو بازهٔ زمانی هم کهنه‌تر است.",
     asset: "ارز",
@@ -107,7 +123,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function StatusPage() {
   await requireUser();
   const [t, locale] = await Promise.all([getL(L), getLocale()]);
-  const st = await getSystemStatus();
+  const [st, checks] = await Promise.all([getSystemStatus(), priceChecks().catch(() => new Map<string, PriceCheckRow>())]);
   // eslint-disable-next-line react-hooks/purity -- server component: rendered once per request
   const now = Date.now();
   return (
@@ -170,6 +186,27 @@ export default async function StatusPage() {
               </tbody>
             </table>
           </TableWrap>
+        </Card>
+        <Card>
+          <CardHeader title={t.cross} description={t.crossDesc} />
+          {checks.size === 0 ? <p className="text-sm text-ink-2">{t.noCross}</p> : (
+            <TableWrap>
+              <table className="w-full">
+                <thead><tr><th className={th}>{t.asset}</th><th className={th}>{t.state}</th><th className={th}>{t.spread}</th><th className={th}>{t.answered}</th><th className={th}>{t.checkedAt}</th></tr></thead>
+                <tbody className="divide-y divide-line">
+                  {[...checks.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([sym, { check: c, fetchedAt }]) => (
+                    <tr key={sym}>
+                      <td className={td}>{sym}</td>
+                      <td className={td}><Badge tone={c.verdict === "AGREE" ? "good" : c.verdict === "SMALL_DIFF" ? "warn" : c.verdict === "DISAGREE" ? "bad" : "neutral"}>{t.crossVerdict[c.verdict]}</Badge></td>
+                      <td className={`${td} tabular ltr`}>{c.spreadPct !== null ? `${c.spreadPct.toFixed(2)}%` : "—"}</td>
+                      <td className={`${td} text-xs`}>{c.sources.map((x) => <span key={x.source} className={x.price === null ? "text-bad-ink line-through" : ""} title={x.error ?? ""}>{sourceLabel(x.source)} </span>)}</td>
+                      <td className={`${td} text-xs text-ink-2`}>{timeAgo(fetchedAt, now, locale)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrap>
+          )}
         </Card>
         <Card>
           <CardHeader title={t.integrations} description={t.integrationsDesc} />

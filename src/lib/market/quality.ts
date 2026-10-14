@@ -1,3 +1,4 @@
+import type { CandleComparison } from "./crosscheck";
 import { TIMEFRAME_MS, type Candle, type Timeframe } from "./types";
 
 export type IssueSeverity = "blocking" | "warning";
@@ -13,7 +14,10 @@ export interface DataIssue {
     | "NON_POSITIVE"
     | "UNSORTED"
     | "EXTREME_MOVE"
-    | "ZERO_VOLUME";
+    | "ZERO_VOLUME"
+    | "SOURCE_MISMATCH"
+    | "SOURCE_DIFF"
+    | "SOURCE_UNCONFIRMED";
   severity: IssueSeverity;
   message: string;
 }
@@ -27,6 +31,8 @@ export interface QualityReport {
   lastClosedCloseTime: number | null;
   gapCount: number;
   checkedAt: number;
+  /** Comparison with other exchanges (live scans only; see crosscheck.ts). */
+  crossSource?: CandleComparison[];
 }
 
 export interface QualityOptions {

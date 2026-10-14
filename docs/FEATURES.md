@@ -8,6 +8,12 @@
 - CoinGecko market overview (price, 1h/24h/7d/30d change, market cap, volume),
   global market cap & BTC dominance, Fear & Greed sentiment, ECB USD→EUR rate.
 - Data-quality gate (stale, gaps, duplicates, invalid OHLC, extreme moves).
+- Multi-source verification: live price compared across Binance, Kraken and
+  CoinGecko; candle closes cross-checked against the second exchange before each
+  analysis (big mismatch = NO SIGNAL); every strategy re-run on the second
+  exchange's data as a "second opinion" that a BUY verdict must not contradict.
+  Shown on the dashboard, coin page, signal page and System status
+  (docs/STRATEGIES.md → Multi-source verification).
 - Liquidity-filtered watchlist (market cap, volume, history, exchange listing;
   stablecoins/wrapped tokens excluded).
 
@@ -73,7 +79,9 @@
   candles; there is no WebSocket streaming. Next step: add a Binance WebSocket
   ticker for live prices on the asset page and faster price alerts.
 - Price alerts are evaluated with each snapshot (~10 minutes).
-- Kraken fallback quotes USD (not USDT) and has only 720 recent candles.
+- Kraken fallback quotes USD (not USDT) and has only 720 recent candles (about 100
+  weeks on the weekly timeframe, which is too short for some weekly strategies'
+  second opinion — those show as "could not be double-checked").
 - News significance and opinion labels are keyword heuristics; there is no
   verified-facts pipeline. AI “why it may matter” is not generated automatically.
 - Rate limiting is in-memory (fine for one instance); multiple web instances

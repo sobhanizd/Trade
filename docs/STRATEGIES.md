@@ -42,6 +42,28 @@ pandas implementation and the published RSI worked example.
 “*x of y rules met*” is a count, **not** a probability or confidence score. The app
 never shows win probabilities.
 
+## Multi-source verification
+
+Code: `src/lib/market/crosscheck.ts`. Each source can be wrong (bad prints, a stuck
+feed, a delisted pair), so data is compared across independent sources:
+
+| Check | When | Sources | Rule |
+|---|---|---|---|
+| Live price | every snapshot (10 min) | Binance, Kraken, CoinGecko | spread (max − min vs median) ≤ 1 % agree · ≤ 3 % small difference · > 3 % disagree |
+| Candle closes | each new closed candle, before analysis | main candle source vs the other exchange (last 100 closed candles) | analysed candle > 3 % apart **or** median > 1.5 % → `SOURCE_MISMATCH` (blocking → NO SIGNAL); > 1 % / 0.5 % → warning; second exchange down → warning |
+| Second opinion | same time | every enabled strategy re-run on the other exchange's candles | same direction (buy / exit / neutral) = CONFIRMED, otherwise NOT_CONFIRMED; stored as `Signal.sourceCheck` |
+
+Only **closes** are compared — wicks (high/low) on thinner order books legitimately
+differ a lot. Kraken weekly candles are built from its daily candles on
+Monday-00:00-UTC weeks so they line up with Binance (Kraken's native weeks start on
+Thursday). Thresholds were calibrated on real data (Oct 2026): Binance vs Kraken
+closes differ ~0.05–0.1 % typically and < 0.4 % at worst; live prices < 0.6 %.
+
+The plain BUY / WAIT / SELL verdict (`src/lib/signals/verdict.ts`) only counts buy
+setups the second exchange does **not** contradict: BUY needs ≥ 2 such setups, else
+WAIT ("not confirmed on Kraken"). Exit/sell warnings are never suppressed by the
+cross-check, so it can only make the verdict more cautious.
+
 ## Common signal fields
 
 - **Entry zone**: `[close − 0.5 × ATR, close]` unless the strategy defines a

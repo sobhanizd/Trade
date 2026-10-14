@@ -18,7 +18,8 @@ import type { MarketRow } from "@/lib/market/types";
 import { getSettings } from "@/lib/settings/service";
 import { STRATEGIES } from "@/lib/strategies/registry";
 import { directionOf, type SignalState } from "@/lib/strategies/types";
-import { riskClass } from "@/lib/views";
+import { DataCheckCard } from "@/components/source-check";
+import { candleChecks, priceChecks, riskClass } from "@/lib/views";
 import type { Dict } from "@/lib/i18n";
 import { getL, getLocale } from "@/lib/i18n/server";
 import { coinLabel, strategyName, timeframeWord } from "@/lib/plain";
@@ -119,12 +120,14 @@ export default async function AssetPage({ params }: { params: Promise<{ symbol: 
   const settings = await getSettings(user.id);
   const fx = await getFx(settings);
   const cur = fx.currency;
-  const [snap, signals, news, watched, risk] = await Promise.all([
+  const [snap, signals, news, watched, risk, prices, candleRows] = await Promise.all([
     db().marketSnapshot.findUnique({ where: { kind_key_currency: { kind: "ASSET", key: symbol, currency: "USD" } } }),
     db().signal.findMany({ where: { userId: user.id, assetId: asset.id, status: "ACTIVE" } }),
     db().newsItem.findMany({ where: { assets: { has: symbol } }, orderBy: { publishedAt: "desc" }, take: 6 }),
     db().watchlistItem.findUnique({ where: { userId_assetId: { userId: user.id, assetId: asset.id } } }),
     riskClass(asset.id),
+    priceChecks([symbol]),
+    candleChecks(asset.id),
   ]);
   const m = convertRow(snap?.data as unknown as MarketRow | undefined, fx.rate) ?? undefined;
   const simple = settings.ui.simple;
@@ -160,6 +163,8 @@ export default async function AssetPage({ params }: { params: Promise<{ symbol: 
           <Stat label={t.volatility} value={<RiskBadge level={risk.level} />} sub={risk.atrPct !== null ? t.atr(risk.atrPct.toFixed(2)) : undefined} />
         </div>
       </Card>
+
+      <DataCheckCard price={prices.get(symbol) ?? null} candles={candleRows} simple={simple} />
 
       <Card className="mb-4">
         <CardHeader title={t.chart} description={t.chartDesc} />

@@ -47,6 +47,29 @@ export function createBinanceProvider(fetchImpl?: typeof fetch): CandleProvider 
   };
 }
 
+/** Latest trade price for several symbols in one call. */
+export async function fetchBinancePrices(symbols: string[], fetchImpl?: typeof fetch): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (!symbols.length) return out;
+  const q = encodeURIComponent(JSON.stringify(symbols));
+  let lastErr: unknown;
+  for (const host of HOSTS) {
+    try {
+      const rows = await fetchJson<{ symbol: string; price: string }[]>(`${host}/api/v3/ticker/price?symbols=${q}`, { label: "binance.price", fetchImpl, retries: 1 });
+      if (!Array.isArray(rows)) throw new HttpError("binance: unexpected response shape", null, false);
+      for (const r of rows) {
+        const price = Number(r.price);
+        if (Number.isFinite(price) && price > 0) out.set(r.symbol, price);
+      }
+      return out;
+    } catch (e) {
+      lastErr = e;
+      if (e instanceof HttpError && e.status === 400) break;
+    }
+  }
+  throw lastErr;
+}
+
 /** Validate that a symbol exists and is trading on Binance (public exchangeInfo). */
 export async function binanceSymbolStatus(symbol: string, fetchImpl?: typeof fetch): Promise<"TRADING" | "NOT_TRADING" | "NOT_FOUND"> {
   try {

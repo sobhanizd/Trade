@@ -1,12 +1,17 @@
 /**
  * Market overview snapshot: prices / % changes / market cap / volume (USD &
  * EUR), global market, sentiment and FX, plus derived trend & volatility.
+ * Every watched asset's live price is cross-checked across Binance, Kraken and
+ * CoinGecko (kind "PRICECHECK").
  * Also evaluates price alerts and volatility alerts.
  */
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { DEFAULT_ASSETS } from "@/lib/market/assets";
 import { loadCandles, syncRecentCandles } from "@/lib/market/candles";
+import { priceConsensus, type SourcePrice } from "@/lib/market/crosscheck";
+import { fetchBinancePrices } from "@/lib/market/providers/binance";
+import { fetchKrakenPrices } from "@/lib/market/providers/kraken";
 import { dailyTrend, overallTrend, volatilityRegime } from "@/lib/market/overview";
 import { fetchGlobal, fetchMarkets } from "@/lib/market/providers/coingecko";
 import { fetchFearGreed, fetchUsdEur } from "@/lib/market/providers/extras";
@@ -51,6 +56,12 @@ export async function runSnapshot(now = new Date()) {
     stats.markets = usdRows.length;
   } catch (e) {
     errors.push(`coingecko markets: ${(e as Error).message}`);
+  }
+  // Cross-check live prices: CoinGecko (aggregate of many exchanges) vs Binance vs Kraken.
+  try {
+    stats.priceChecks = await crossCheckPrices(watched, usdRows, now);
+  } catch (e) {
+    errors.push(`price cross-check: ${(e as Error).message}`);
   }
   // Global market data changes slowly: refresh at most every 30 minutes.
   const prevGlobal = await db().marketSnapshot.findUnique({ where: { kind_key_currency: { kind: "GLOBAL", key: "global", currency: "USD" } }, select: { fetchedAt: true } });
@@ -109,6 +120,41 @@ export async function runSnapshot(now = new Date()) {
   stats.errors = errors;
   if (errors.length >= 3) throw new Error(errors.join(" | "));
   return stats;
+}
+
+type CheckAsset = { id: string; symbol: string; coingeckoId: string | null; binanceSymbol: string | null; krakenPair: string | null };
+
+/** Compare each asset's price on every source; one batch request per exchange. */
+async function crossCheckPrices(assets: CheckAsset[], usdRows: MarketRow[], now: Date) {
+  const fetched = async (provider: string, fn: () => Promise<Map<string, number>>) => {
+    try {
+      return { prices: await tracked(provider, fn), at: new Date().toISOString(), error: undefined };
+    } catch (e) {
+      return { prices: new Map<string, number>(), at: null, error: (e as Error).message.slice(0, 200) };
+    }
+  };
+  const [bin, kra] = await Promise.all([
+    fetched("binance", () => fetchBinancePrices(assets.map((a) => a.binanceSymbol).filter((x): x is string => Boolean(x)))),
+    fetched("kraken", () => fetchKrakenPrices(assets.map((a) => a.krakenPair).filter((x): x is string => Boolean(x)))),
+  ]);
+  const counts = { agree: 0, smallDiff: 0, disagree: 0, singleSource: 0 };
+  for (const a of assets) {
+    const cg = usdRows.find((r) => r.coingeckoId === a.coingeckoId);
+    const sources: SourcePrice[] = [];
+    const add = (source: string, listed: boolean, f: { prices: Map<string, number>; at: string | null; error?: string }, key: string | null) => {
+      if (!listed || !key) return;
+      const price = f.prices.get(key) ?? null;
+      sources.push({ source, price, at: price !== null ? f.at : null, ...(price === null ? { error: f.error ?? "no price returned" } : {}) });
+    };
+    add("binance", Boolean(a.binanceSymbol), bin, a.binanceSymbol);
+    add("kraken", Boolean(a.krakenPair), kra, a.krakenPair);
+    if (a.coingeckoId) sources.push({ source: "coingecko", price: cg?.price ?? null, at: cg?.lastUpdated ?? null, ...(cg?.price == null ? { error: "not refreshed in this snapshot" } : {}) });
+    const check = priceConsensus(a.symbol, sources, now);
+    counts[check.verdict === "AGREE" ? "agree" : check.verdict === "SMALL_DIFF" ? "smallDiff" : check.verdict === "DISAGREE" ? "disagree" : "singleSource"]++;
+    if (check.verdict === "DISAGREE") logger.warn("price sources disagree", { symbol: a.symbol, spreadPct: check.spreadPct, outlier: check.outlier });
+    await upsertSnapshot("PRICECHECK", a.symbol, "USD", check, sources.map((x) => x.source).join(" + "), check.checkedAt, a.id);
+  }
+  return counts;
 }
 
 async function evaluatePriceAndVolatilityAlerts(rows: MarketRow[], assets: { id: string; symbol: string; coingeckoId: string | null }[], now: Date) {

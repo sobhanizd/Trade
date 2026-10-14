@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Alert, ButtonLink, Disclaimer, EmptyState } from "@/components/ui";
@@ -113,7 +114,7 @@ export function trendWords(state: string | undefined, t: T = L.en): { text: stri
   }
 }
 
-export async function SimpleHome({ view, lastScan, providerProblem, paper, urgent = [], advice = null }: { view: View; lastScan: Date | null; providerProblem: string | null; paper: { open: number; netPnl: number }; urgent?: Awaited<ReturnType<typeof urgentForWatchlist>>; advice?: Awaited<ReturnType<typeof adviceForWatchlist>> | null }) {
+export async function SimpleHome({ view, lastScan, providerProblem, checkProblem = null, dataCheck = null, paper, urgent = [], advice = null }: { view: View; lastScan: Date | null; providerProblem: string | null; checkProblem?: { title: string; body: string } | null; dataCheck?: ReactNode; paper: { open: number; netPnl: number }; urgent?: Awaited<ReturnType<typeof urgentForWatchlist>>; advice?: Awaited<ReturnType<typeof adviceForWatchlist>> | null }) {
   const t = await getL(L);
   const locale = await getLocale();
   const cur = view.currency;
@@ -134,6 +135,8 @@ export async function SimpleHome({ view, lastScan, providerProblem, paper, urgen
       </div>
 
       {providerProblem && <Alert tone="warn" className="mb-4" title={t.problemTitle}>{providerProblem}</Alert>}
+      {checkProblem && <Alert tone="info" className="mb-4" title={checkProblem.title}>{checkProblem.body}</Alert>}
+      {dataCheck}
       {urgent.length > 0 && (
         <Alert tone="error" className="mb-4" title={t.urgentTitle}>
           <ul className="space-y-1">

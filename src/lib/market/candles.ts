@@ -35,6 +35,37 @@ export async function fetchRecentCandles(
   });
 }
 
+export interface OtherSource {
+  source: string;
+  candles: Candle[];
+  error?: string;
+}
+
+/**
+ * Recent candles from every provider except `exclude` (the one that supplied the
+ * stored series), for cross-checking. Never throws: failures are returned per source.
+ */
+export async function fetchOtherSources(
+  asset: AssetRef,
+  timeframe: Timeframe,
+  exclude: string,
+  limit: number,
+  providers: CandleProvider[] = candleProviders(),
+): Promise<OtherSource[]> {
+  const out: OtherSource[] = [];
+  for (const p of providers) {
+    if (p.id === exclude || !p.supports(asset, timeframe)) continue;
+    try {
+      const candles = await tracked(p.id, () => p.fetchCandles({ asset, timeframe, limit: Math.min(limit, p.maxPerRequest) }));
+      out.push({ source: p.id, candles });
+    } catch (e) {
+      logger.warn("cross-check source failed", { provider: p.id, symbol: asset.symbol, timeframe, error: e });
+      out.push({ source: p.id, candles: [], error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return out;
+}
+
 /** Paginated historical fetch (for backtests). Uses only providers that support arbitrary ranges. */
 export async function fetchHistoricalCandles(
   asset: AssetRef,

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { CheckCircle2, CircleHelp, XCircle } from "lucide-react";
+import { secondOpinionLine } from "@/components/source-check";
+import { Alert } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import type { SignalSourceCheck } from "@/lib/market/crosscheck";
 import type { Currency } from "@/lib/format";
 import { fmtDate, timeAgo } from "@/lib/format";
 import type { Dict, Locale } from "@/lib/i18n";
@@ -15,6 +18,7 @@ interface Props {
     id: string; state: string; status: string; strategyId: string; timeframe: string; signalAt: Date; marketDataAt: Date; price: number;
     entryLow: number | null; entryHigh: number | null; invalidation: number | null; targets: number[]; riskReward: number | null;
     conditions: unknown; risks: unknown; conflicts: unknown; asset: { symbol: string; name: string }; paperTrades: unknown[];
+    sourceCheck?: unknown;
   };
   currency: Currency;
   eurRate: number | null;
@@ -127,6 +131,7 @@ export async function SignalPlain({ signal: s, currency, eurRate }: Props) {
   const drop = isBuy && s.invalidation !== null ? ((s.price - s.invalidation) / s.price) * 100 : null;
   const gain = isBuy && s.targets[0] ? ((s.targets[0] - s.price) / s.price) * 100 : null;
   const coin = `${coinFullName(s.asset.symbol, s.asset.name, locale)} (${s.asset.symbol})`;
+  const second = s.state === "NO_SIGNAL" ? null : secondOpinionLine((s.sourceCheck ?? null) as SignalSourceCheck | null, locale);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -164,6 +169,8 @@ export async function SignalPlain({ signal: s, currency, eurRate }: Props) {
         )}
         {isSell && s.invalidation !== null && <p className="mt-3 text-sm">{t.sellGone} <b className="tabular">{fmt(s.invalidation)}</b>.</p>}
       </section>
+
+      {second && <Alert tone={second.tone}>{second.text}</Alert>}
 
       {isBuy && s.status === "ACTIVE" && (
         <section className="rounded-xl border border-line bg-surface p-4">

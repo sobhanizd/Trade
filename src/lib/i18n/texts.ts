@@ -33,6 +33,16 @@ function reasonText(r: VerdictReason, l: Locale): string {
       return fa ? `${r.exits} روشِ ${timeframeWord(r.tf, l)} هشدار می‌دهد.` : `${r.exits} ${timeframeWord(r.tf, l)} strateg${r.exits === 1 ? "y shows" : "ies show"} a warning.`;
     case "waitLowRR":
       return fa ? `سود احتمالی فقط ${r.rr.toFixed(1)} برابرِ ضرر احتمالی است — دست‌کم ${r.min} برابر لازم است.` : `Potential gain is only ${r.rr.toFixed(1)}× the potential loss — at least ${r.min}× is required.`;
+    case "buyConfirmed":
+      return fa
+        ? `داده‌های صرافی دوم (${r.source}) هم همین فرصت خرید را برای ${r.confirmed} مورد از آن‌ها نشان می‌دهد.`
+        : `${r.source}'s data shows the same setup for ${r.confirmed} of them.`;
+    case "buyUnchecked":
+      return fa ? "این بار امکان بررسی دوباره با داده‌های یک صرافی دیگر نبود." : "Could not double-check on a second exchange this time.";
+    case "waitNotConfirmed":
+      return fa
+        ? `${r.unconfirmed} مورد از ${r.buys} فرصت خرید، در داده‌های صرافی دوم (${r.source}) دیده نمی‌شود — صبر کنید تا تأیید شود.`
+        : `${r.unconfirmed} of the ${r.buys} buy setups do not show up on ${r.source}'s data — waiting for confirmation.`;
     case "waitTimingFalling":
       return fa
         ? `تصویر ${timeframeWord(r.tf, l)} مثبت است، ولی نمودار ${timeframeWord(r.tf2, l)} در حال ریزش است (${r.n} هشدار) — صبر کنید آرام شود تا وسط ریزش نخرید.`

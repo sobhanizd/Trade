@@ -7,11 +7,14 @@
  *
  *  NO DATA : no usable signals on the primary timeframe.
  *  SELL    : ≥ 2 primary strategies show exit/sell conditions and they outnumber buy setups.
- *  BUY     : ≥ 2 primary strategies show buy setups, none show exit/sell conditions,
- *            the best setup's reward/risk after costs ≥ 1.5, and the timing timeframe
- *            does not show ≥ 2 exit/sell conditions.
+ *  BUY     : ≥ 2 primary strategies show buy setups that a second exchange's data does
+ *            not contradict, none show exit/sell conditions, the best setup's
+ *            reward/risk after costs ≥ 1.5, and the timing timeframe does not show
+ *            ≥ 2 exit/sell conditions.
  *  WAIT    : everything else (the reasons are listed).
  */
+import { sourceAgreementOf, sourceLabel } from "@/lib/market/crosscheck";
+
 export type Action = "BUY" | "WAIT" | "SELL" | "NO_DATA";
 
 export interface VerdictSignal {
@@ -27,6 +30,8 @@ export interface VerdictSignal {
   targets: number[];
   entryLow: number | null;
   entryHigh: number | null;
+  /** Second-exchange check (Signal.sourceCheck); absent on signals created before cross-checking. */
+  sourceCheck?: unknown;
 }
 
 export type VerdictHeadline = "noData" | "sell" | "strongBuy" | "buy" | "waitAlmost" | "wait";
@@ -37,6 +42,9 @@ export type VerdictReason =
   | { k: "buyAgree"; buys: number; total: number; tf: string }
   | { k: "buyRR"; rr: number }
   | { k: "buyTimingCalm"; tf: string }
+  | { k: "buyConfirmed"; confirmed: number; buys: number; source: string }
+  | { k: "buyUnchecked" }
+  | { k: "waitNotConfirmed"; unconfirmed: number; buys: number; source: string }
   | { k: "waitFewBuys"; buys: number; total: number; tf: string }
   | { k: "waitWarnings"; exits: number; tf: string }
   | { k: "waitLowRR"; rr: number; min: number }
@@ -60,6 +68,11 @@ export interface Verdict {
 }
 
 export const MIN_VERDICT_RR = 1.5;
+/** Display name of the second exchange in a stored source check. */
+const sourceOf = (v: unknown): string | null => {
+  const src = (v as { opinions?: { source?: string }[] } | null | undefined)?.opinions?.[0]?.source;
+  return src ? sourceLabel(src) : null;
+};
 const BUY = new Set(["STRONG_BUY_SETUP", "POTENTIAL_BUY"]);
 const EXIT = new Set(["EXIT_SETUP", "POTENTIAL_SELL"]);
 const ORDER = ["1w", "1d", "4h", "1h"];
@@ -76,12 +89,18 @@ export function computeVerdict(signals: VerdictSignal[]): Verdict {
     return { ...base, action: "NO_DATA", strong: false, headline: "Not enough data yet", reasons: ["No usable signals yet — wait for the next scan or check System status."], headlineCode: "noData", reasonCodes: [{ k: "noData" }], best: null };
   }
   const buys = prim.filter((s) => BUY.has(s.state));
+  // Buy setups that a second exchange's data contradicts are not trusted for a BUY.
+  const unconfirmed = buys.filter((s) => sourceAgreementOf(s.sourceCheck) === "NOT_CONFIRMED");
+  const trusted = buys.filter((s) => !unconfirmed.includes(s));
+  const confirmed = trusted.filter((s) => sourceAgreementOf(s.sourceCheck) === "CONFIRMED");
+  const checked = buys.some((s) => sourceAgreementOf(s.sourceCheck) !== null);
+  const secondSource = sourceOf(unconfirmed[0]?.sourceCheck) ?? sourceOf(confirmed[0]?.sourceCheck) ?? "second exchange";
   const exits = prim.filter((s) => EXIT.has(s.state));
   const timingExits = timing ? signals.filter((s) => s.timeframe === timing && EXIT.has(s.state)) : [];
   const counts = { ...base, buyCount: buys.length, exitCount: exits.length, total: prim.length };
   const rank = (a: VerdictSignal, b: VerdictSignal) => b.rulesMet / Math.max(1, b.rulesTotal) - a.rulesMet / Math.max(1, a.rulesTotal) || (b.riskReward ?? 0) - (a.riskReward ?? 0);
-  const bestBuy = [...buys].filter((s) => s.invalidation !== null).sort(rank)[0] ?? null;
-  const bestRR = Math.max(0, ...buys.map((s) => s.riskReward ?? 0));
+  const bestBuy = [...trusted].filter((s) => s.invalidation !== null).sort(rank)[0] ?? [...buys].filter((s) => s.invalidation !== null).sort(rank)[0] ?? null;
+  const bestRR = Math.max(0, ...trusted.map((s) => s.riskReward ?? 0));
   const P = label(primary);
   const T = label(timing);
 
@@ -99,7 +118,12 @@ export function computeVerdict(signals: VerdictSignal[]): Verdict {
   }
 
   const reasons: string[] = [];
-  if (buys.length >= 2 && exits.length === 0 && bestRR >= MIN_VERDICT_RR && timingExits.length < 2) {
+  if (trusted.length >= 2 && exits.length === 0 && bestRR >= MIN_VERDICT_RR && timingExits.length < 2) {
+    const sourceReason: VerdictReason | null = confirmed.length
+      ? { k: "buyConfirmed", confirmed: confirmed.length, buys: buys.length, source: secondSource }
+      : checked
+        ? { k: "buyUnchecked" }
+        : null;
     return {
       ...counts,
       action: "BUY",
@@ -109,9 +133,16 @@ export function computeVerdict(signals: VerdictSignal[]): Verdict {
         `${buys.length} of ${prim.length} ${P} strategies see a buy setup and none show a warning.`,
         `Potential gain is about ${bestRR.toFixed(1)}× the potential loss (after fees).`,
         timing ? `The ${T} chart is not falling.` : "",
+        sourceReason?.k === "buyConfirmed" ? `${secondSource}'s data shows the same setup for ${confirmed.length} of them.` : "",
+        sourceReason?.k === "buyUnchecked" ? "Could not double-check on a second exchange this time." : "",
       ].filter(Boolean),
       headlineCode: buys.some((s) => s.state === "STRONG_BUY_SETUP") ? "strongBuy" : "buy",
-      reasonCodes: [{ k: "buyAgree", buys: buys.length, total: prim.length, tf: primary }, { k: "buyRR", rr: bestRR }, ...(timing ? [{ k: "buyTimingCalm" as const, tf: timing }] : [])],
+      reasonCodes: [
+        { k: "buyAgree", buys: buys.length, total: prim.length, tf: primary },
+        { k: "buyRR", rr: bestRR },
+        ...(timing ? [{ k: "buyTimingCalm" as const, tf: timing }] : []),
+        ...(sourceReason ? [sourceReason] : []),
+      ],
       best: bestBuy,
     };
   }
@@ -121,15 +152,19 @@ export function computeVerdict(signals: VerdictSignal[]): Verdict {
     reasons.push(`Only ${buys.length} of ${prim.length} ${P} strategies see a buy setup (2 needed).`);
     reasonCodes.push({ k: "waitFewBuys", buys: buys.length, total: prim.length, tf: primary });
   }
+  if (buys.length >= 2 && trusted.length < 2) {
+    reasons.push(`${unconfirmed.length} of the ${buys.length} buy setups do not show up on ${secondSource}'s data — waiting for confirmation.`);
+    reasonCodes.push({ k: "waitNotConfirmed", unconfirmed: unconfirmed.length, buys: buys.length, source: secondSource });
+  }
   if (exits.length > 0) {
     reasons.push(`${exits.length} ${P} strateg${exits.length === 1 ? "y shows" : "ies show"} a warning.`);
     reasonCodes.push({ k: "waitWarnings", exits: exits.length, tf: primary });
   }
-  if (buys.length >= 2 && bestRR < MIN_VERDICT_RR) {
+  if (trusted.length >= 2 && bestRR < MIN_VERDICT_RR) {
     reasons.push(`Potential gain is only ${bestRR.toFixed(1)}× the potential loss — at least ${MIN_VERDICT_RR}× is required.`);
     reasonCodes.push({ k: "waitLowRR", rr: bestRR, min: MIN_VERDICT_RR });
   }
-  if (buys.length >= 2 && timingExits.length >= 2) {
+  if (trusted.length >= 2 && timingExits.length >= 2) {
     reasons.push(`The ${P} picture looks positive, but the ${T} chart is falling (${timingExits.length} warnings) — waiting for it to settle avoids buying into a drop.`);
     reasonCodes.push({ k: "waitTimingFalling", tf: primary, tf2: timing ?? "", n: timingExits.length });
   }

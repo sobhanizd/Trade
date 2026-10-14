@@ -366,6 +366,10 @@ const EVIDENCE_FA: Rule[] = [
   [/^(\d+) missing candle\(s\) detected/, (m) => `${m[1]} کندل در داده‌ها جا افتاده است.`],
   [/^Only (\d+) closed candle\(s\) available; at least (\d+)/, (m) => `فقط ${m[1]} کندل بسته‌شده در دسترس است؛ برای شاخص‌های قابل‌اعتماد دست‌کم ${m[2]} کندل لازم است.`],
   [/^Latest closed candle ended (\d+) minutes ago/, (m) => `آخرین کندل بسته‌شده ${m[1]} دقیقه پیش تمام شده — داده‌ها قدیمی است.`],
+  // Cross-check with a second exchange
+  [/^Prices from (\S+) and (\S+) differ too much \((\S+)% on the latest candle, (\S+)% typical\)/, (m) => `قیمت‌های ${m[1]} و ${m[2]} خیلی با هم فرق دارند (${m[3]}% در آخرین کندل، معمولاً ${m[4]}%) — شاید یکی از منبع‌ها اشتباه باشد، برای همین سیگنالی داده نمی‌شود.`],
+  [/^Prices from (\S+) and (\S+) differ slightly \((\S+)% on the latest candle, (\S+)% typical\)/, (m) => `قیمت‌های ${m[1]} و ${m[2]} کمی با هم فرق دارند (${m[3]}% در آخرین کندل، معمولاً ${m[4]}%).`],
+  [/^This data could not be double-checked on a second exchange \((\S+)\)/, (m) => `این داده‌ها را نشد با یک صرافی دوم (${m[1]}) دوباره بررسی کرد.`],
 ];
 
 /** Risks, conflicts and data-quality notes produced by the strategies/signal pipeline. Unknown text passes through. */

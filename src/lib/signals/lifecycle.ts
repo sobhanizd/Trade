@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import type { Signal } from "@/generated/prisma/client";
 import { formatChangeAlert, formatInvalidationAlert, formatSignalAlert, type SignalLike } from "@/lib/notifications/format";
 import { notify } from "@/lib/notifications/dispatch";
+import type { SignalSourceCheck } from "@/lib/market/crosscheck";
 import type { UserSettingsData } from "@/lib/settings/schema";
 import { getStrategy } from "@/lib/strategies/registry";
 import { BUY_STATES, STATE_RANK, type SignalState } from "@/lib/strategies/types";
@@ -45,6 +46,7 @@ export async function processResult(
   settings: UserSettingsData,
   evidence: unknown | null,
   now = new Date(),
+  sourceCheck: SignalSourceCheck | null = null,
 ): Promise<ProcessOutcome> {
   const active = await db().signal.findFirst({
     where: { userId, assetId: asset.id, timeframe: result.timeframe, strategyId: result.strategyId, status: "ACTIVE" },
@@ -54,7 +56,8 @@ export async function processResult(
   if (active && active.fingerprint === result.fingerprint) {
     const updated = await db().signal.update({
       where: { id: active.id },
-      data: { lastEvaluatedAt: now, expiresAt: result.expiresAt ? new Date(result.expiresAt) : active.expiresAt },
+      // The second-exchange check reflects the latest candle, so it is refreshed even when the state is unchanged.
+      data: { lastEvaluatedAt: now, expiresAt: result.expiresAt ? new Date(result.expiresAt) : active.expiresAt, ...(sourceCheck ? { sourceCheck: sourceCheck as object } : {}) },
     });
     return { signal: updated, created: false, previous: null, notified: false };
   }
@@ -100,6 +103,7 @@ export async function processResult(
         fingerprint: result.fingerprint,
         params: result.params as object,
         evidence: (evidence ?? undefined) as object | undefined,
+        sourceCheck: (sourceCheck ?? undefined) as object | undefined,
         analysisRunId,
         lastEvaluatedAt: now,
       },

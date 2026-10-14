@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { SecondOpinionCard } from "@/components/source-check";
+import type { SignalSourceCheck } from "@/lib/market/crosscheck";
 import { getFx } from "@/lib/fx";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -270,6 +272,8 @@ export default async function SignalDetail({ params, searchParams }: { params: P
           </TableWrap>
         </Card>
       </div>
+
+      <SecondOpinionCard check={state === "NO_SIGNAL" ? null : ((s.sourceCheck ?? null) as SignalSourceCheck | null)} className="mt-4" />
 
       <Card className="mt-4">
         <CardHeader title={t.evidenceTitle} />

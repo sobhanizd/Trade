@@ -14,6 +14,8 @@ export interface AiContext {
   focus: { signalId?: string; symbol?: string };
   signals: unknown[];
   marketSnapshot: unknown | null;
+  /** Live price of the focused asset compared across Binance, Kraken and CoinGecko. */
+  priceCrossCheck: unknown | null;
   marketOverview: unknown | null;
   strategies: unknown[];
   backtests: unknown[];
@@ -67,6 +69,7 @@ export async function buildAiContext(userId: string, focus: { signalId?: string;
 
   const snapshot = asset ? await db().marketSnapshot.findUnique({ where: { kind_key_currency: { kind: "ASSET", key: asset.symbol, currency: "USD" } } }) : null;
   if (asset && !snapshot) missing.push(m.noSnapshot(asset.symbol));
+  const priceCheck = asset ? await db().marketSnapshot.findUnique({ where: { kind_key_currency: { kind: "PRICECHECK", key: asset.symbol, currency: "USD" } } }) : null;
   const overview = await db().marketSnapshot.findUnique({ where: { kind_key_currency: { kind: "OVERVIEW", key: "market", currency: "USD" } } });
   const strategyIds = [...new Set(signals.map((s) => s.strategyId))];
   const backtests = asset
@@ -111,8 +114,10 @@ export async function buildAiContext(userId: string, focus: { signalId?: string;
       dataIssues: s.dataIssues,
       expiresAt: s.expiresAt?.toISOString() ?? null,
       backtestEvidence: s.evidence ?? null,
+      secondExchangeCheck: s.sourceCheck ?? null,
     })),
     marketSnapshot: snapshot ? { ...(snapshot.data as object), source: snapshot.source, fetchedAt: snapshot.fetchedAt.toISOString() } : null,
+    priceCrossCheck: priceCheck ? { ...(priceCheck.data as object), fetchedAt: priceCheck.fetchedAt.toISOString() } : null,
     marketOverview: overview ? { ...(overview.data as object), fetchedAt: overview.fetchedAt.toISOString() } : null,
     strategies: strategyIds.map((id) => {
       const d = getStrategy(id);

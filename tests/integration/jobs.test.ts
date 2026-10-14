@@ -167,3 +167,81 @@ describe("signal invalidation & paper exits", () => {
     expect(closed.netPnl!).toBeCloseTo(closed.grossPnl! - closed.fees! - (100.05 - 100) * 2 - (95 - closed.exitPrice!) * 2, 6);
   });
 });
+
+/** Kraken OHLC answer built from the same synthetic series as Binance, closes scaled by `factor`. */
+function krakenFrom(factor: number) {
+  return (url: URL) => {
+    if (url.pathname !== "/0/public/OHLC") return null;
+    const interval = Number(url.searchParams.get("interval"));
+    const tf = interval === 240 ? "4h" : "1d";
+    const s = (v: unknown) => String(Number(v) * factor);
+    const rows = syntheticKlines(tf, 600, NOW).map((k) => [Number(k[0]) / 1000, s(k[1]), s(k[2]), s(k[3]), s(k[4]), "0", k[5], 10]);
+    return json({ error: [], result: { XXBTZUSD: rows, last: 0 } });
+  };
+}
+const both = (...hs: ((url: URL) => Response | null)[]) => (url: URL) => hs.reduce<Response | null>((r, h) => r ?? h(url), null);
+
+describe("cross-source verification", () => {
+  it("double-checks candles on Kraken and stores a confirmed second opinion", async () => {
+    const { user } = await createUser("owner@test.dev", ["BTC"]);
+    mockFetch(both(binanceOk(), krakenFrom(1.0005)));
+    const r = await runScan();
+    expect(r.crossChecked).toBe(2);
+    expect(r.sourceMismatches).toBe(0);
+    const run = await db().analysisRun.findFirst({ where: { timeframe: "1d" } });
+    const cross = (run?.dataQuality as { crossSource?: { source: string; verdict: string; matched: number }[] }).crossSource!;
+    expect(cross[0]).toMatchObject({ source: "kraken", verdict: "AGREE" });
+    expect(cross[0].matched).toBeGreaterThanOrEqual(99);
+    const signals = await db().signal.findMany({ where: { userId: user.id } });
+    expect(signals.every((s) => (s.sourceCheck as { agreement: string }).agreement === "CONFIRMED")).toBe(true);
+    expect(signals.some((s) => s.state === "POTENTIAL_BUY" || s.state === "STRONG_BUY_SETUP")).toBe(true);
+    expect((await db().providerStatus.findUnique({ where: { provider: "kraken" } }))?.consecutiveFailures).toBe(0);
+  });
+
+  it("gives NO SIGNAL when the exchanges disagree on the price", async () => {
+    const { user } = await createUser("owner@test.dev", ["BTC"]);
+    mockFetch(both(binanceOk(), krakenFrom(1.05)));
+    const r = await runScan();
+    expect(r.sourceMismatches).toBe(2);
+    const signals = await db().signal.findMany({ where: { userId: user.id } });
+    expect(signals.length).toBeGreaterThan(0);
+    expect(signals.every((s) => s.state === "NO_SIGNAL")).toBe(true);
+    expect((signals[0].dataIssues as string[]).join(" ")).toMatch(/Binance and Kraken differ too much/);
+  });
+
+  it("still analyses (with a warning) when the second exchange is down", async () => {
+    const { user } = await createUser("owner@test.dev", ["BTC"]);
+    mockFetch(both(binanceOk(), (url) => (url.host.includes("kraken") ? json({ error: ["EService:Unavailable"] }, 503) : null)));
+    await runScan();
+    const signals = await db().signal.findMany({ where: { userId: user.id } });
+    expect(signals.some((s) => s.state !== "NO_SIGNAL")).toBe(true);
+    const trend = signals.find((s) => s.state !== "NO_SIGNAL")!;
+    expect((trend.dataIssues as string[]).join(" ")).toMatch(/could not be double-checked/);
+    expect((trend.sourceCheck as { agreement: string }).agreement).toBe("UNCHECKED");
+  });
+
+  it("cross-checks live prices across Binance, Kraken and CoinGecko in the snapshot", async () => {
+    await createUser("owner@test.dev", ["BTC"]);
+    const { runSnapshot } = await import("@/lib/jobs/snapshot");
+    mockFetch(
+      both(binanceOk(), (url) => {
+        if (url.host.includes("frankfurter")) return json({ date: "2026-10-14", rates: { EUR: 0.92 } });
+        if (url.pathname.endsWith("/coins/markets"))
+          return json([
+            { id: "bitcoin", symbol: "btc", name: "Bitcoin", current_price: 100, last_updated: new Date(NOW).toISOString() },
+            { id: "ethereum", symbol: "eth", name: "Ethereum", current_price: 50, last_updated: new Date(NOW).toISOString() },
+          ]);
+        if (url.pathname === "/api/v3/ticker/price") return json([{ symbol: "BTCUSDT", price: "100.2" }, { symbol: "ETHUSDT", price: "50.1" }]);
+        if (url.pathname === "/0/public/Ticker") return json({ error: [], result: { XXBTZUSD: { c: ["100.1", "1"] }, XETHZUSD: { c: ["56", "1"] } } });
+        return json({ error: "not mocked" }, 500);
+      }),
+    );
+    const r = await runSnapshot(new Date(NOW));
+    expect(r.priceChecks).toMatchObject({ agree: 1, disagree: 1 });
+    const btc = await db().marketSnapshot.findUnique({ where: { kind_key_currency: { kind: "PRICECHECK", key: "BTC", currency: "USD" } } });
+    expect(btc?.data).toMatchObject({ verdict: "AGREE", outlier: null });
+    expect((btc?.data as { sources: unknown[] }).sources).toHaveLength(3);
+    const eth = await db().marketSnapshot.findUnique({ where: { kind_key_currency: { kind: "PRICECHECK", key: "ETH", currency: "USD" } } });
+    expect(eth?.data).toMatchObject({ verdict: "DISAGREE", outlier: "kraken" });
+  });
+});

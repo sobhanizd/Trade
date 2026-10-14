@@ -2,7 +2,9 @@
 import { db } from "@/lib/db";
 import { atr } from "@/lib/indicators";
 import { loadCandles } from "@/lib/market/candles";
-import type { GlobalMarket, MarketRow, SentimentReading } from "@/lib/market/types";
+import type { CandleComparison, PriceCheck } from "@/lib/market/crosscheck";
+import type { QualityReport } from "@/lib/market/quality";
+import { TIMEFRAMES, type GlobalMarket, type MarketRow, type SentimentReading, type Timeframe } from "@/lib/market/types";
 import { getSettings } from "@/lib/settings/service";
 import { convertRow, getFx } from "@/lib/fx";
 import { getStrategy } from "@/lib/strategies/registry";
@@ -91,7 +93,47 @@ export async function lastScan() {
   return { lastSuccess: ok?.startedAt ?? null, last };
 }
 
+/** A provider whose last failure is older than this is no longer being called — not "down". */
+const PROVIDER_FAILURE_RELEVANT_MS = 6 * 3_600_000;
+
 export async function providerHealth() {
   const ps = await db().providerStatus.findMany();
-  return ps.map((p) => ({ provider: p.provider, ok: p.consecutiveFailures === 0, lastSuccessAt: p.lastSuccessAt, lastError: p.lastError, failures: p.consecutiveFailures }));
+  const now = Date.now();
+  return ps.map((p) => ({
+    provider: p.provider,
+    ok: p.consecutiveFailures === 0 || !p.lastErrorAt || now - p.lastErrorAt.getTime() > PROVIDER_FAILURE_RELEVANT_MS,
+    lastSuccessAt: p.lastSuccessAt,
+    lastError: p.lastError,
+    failures: p.consecutiveFailures,
+  }));
+}
+
+export interface PriceCheckRow {
+  check: PriceCheck;
+  fetchedAt: Date;
+}
+
+/** Latest live-price cross-checks (Binance / Kraken / CoinGecko), keyed by symbol. */
+export async function priceChecks(symbols?: string[]): Promise<Map<string, PriceCheckRow>> {
+  const rows = await db().marketSnapshot.findMany({ where: { kind: "PRICECHECK", currency: "USD", ...(symbols ? { key: { in: symbols } } : {}) } });
+  return new Map(rows.map((r) => [r.key, { check: r.data as unknown as PriceCheck, fetchedAt: r.fetchedAt }]));
+}
+
+export interface CandleCheckRow {
+  timeframe: Timeframe;
+  candleOpenTime: Date;
+  provider: string | null;
+  comparisons: CandleComparison[];
+}
+
+/** Per timeframe, the latest analysis that was cross-checked against another exchange. */
+export async function candleChecks(assetId: string): Promise<CandleCheckRow[]> {
+  const out = await Promise.all(
+    TIMEFRAMES.map(async (tf): Promise<CandleCheckRow | null> => {
+      const runs = await db().analysisRun.findMany({ where: { assetId, timeframe: tf }, orderBy: { candleOpenTime: "desc" }, take: 5, select: { candleOpenTime: true, dataQuality: true, provider: true } });
+      const run = runs.find((r) => (r.dataQuality as unknown as QualityReport | null)?.crossSource?.length);
+      return run ? { timeframe: tf, candleOpenTime: run.candleOpenTime, provider: run.provider, comparisons: (run.dataQuality as unknown as QualityReport).crossSource! } : null;
+    }),
+  );
+  return out.filter((x): x is CandleCheckRow => x !== null);
 }

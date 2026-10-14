@@ -1,22 +1,26 @@
 /**
  * Scheduled market scan. For every (watched asset × scanned timeframe):
  *  1. sync candles from the provider chain (with failover),
- *  2. run data-quality checks,
+ *  2. run data-quality checks, including a cross-check of the closes against a
+ *     second exchange (big disagreement = bad data = no signal),
  *  3. evaluate each enabled strategy on the latest CLOSED candle — at most
  *     once per candle thanks to the AnalysisRun unique key (idempotent),
+ *     and again on the second exchange's candles (a "second opinion" stored on the signal),
  *  4. persist signal state changes, send alerts, track paper trades,
  *  5. invalidate/expire active signals and raise stale-data system alerts.
  */
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { logger } from "@/lib/logger";
-import { loadCandles, syncRecentCandles } from "@/lib/market/candles";
+import { fetchOtherSources, loadCandles, syncRecentCandles, type OtherSource } from "@/lib/market/candles";
+import { buildSourceCheck, compareCandles, crossSourceIssue, opinionFrom, type SignalSourceCheck, type SourceOpinion } from "@/lib/market/crosscheck";
+import { candleProviders } from "@/lib/market/providers";
 import { checkCandleQuality } from "@/lib/market/quality";
 import { TIMEFRAME_MS, type Candle, type Timeframe } from "@/lib/market/types";
 import { notify, processPendingDeliveries } from "@/lib/notifications/dispatch";
 import { formatProviderProblemAlert, formatStaleDataAlert } from "@/lib/notifications/format";
 import { autoTrackSignal, closeAutoTradesOnExit, updateOpenPaperTrades } from "@/lib/paper/service";
-import { analyzeLatest, annotateCrossStrategyConflicts } from "@/lib/signals/evaluate";
+import { analyzeLatest, annotateCrossStrategyConflicts, type SignalResult } from "@/lib/signals/evaluate";
 import { checkInvalidationsAndExpiry, processResult } from "@/lib/signals/lifecycle";
 import { costsFromSettings, parseSettings, type UserSettingsData } from "@/lib/settings/schema";
 import { getSettings, getStrategyConfigs, type ResolvedStrategyConfig } from "@/lib/settings/service";
@@ -32,6 +36,9 @@ interface WorkItem {
   timeframe: Timeframe;
   users: WorkUser[];
 }
+
+/** Candles fetched from each other exchange for the cross-check (Kraken serves at most 720). */
+const CROSS_CHECK_CANDLES = 720;
 
 export interface ScanOptions {
   now?: Date;
@@ -106,7 +113,7 @@ async function usersWithStaleConfigs(item: WorkItem, assetId: string, timeframe:
 export async function runScan(opts: ScanOptions = {}) {
   const now = opts.now ?? new Date();
   const items = await buildWorkList(opts.userId);
-  const stats = { items: items.length, analysed: 0, skippedAlreadyAnalysed: 0, noSignal: 0, newSignals: 0, alerts: 0, fetchErrors: 0, invalidated: 0, expired: 0, paperClosed: 0 };
+  const stats = { items: items.length, analysed: 0, skippedAlreadyAnalysed: 0, noSignal: 0, newSignals: 0, alerts: 0, fetchErrors: 0, invalidated: 0, expired: 0, paperClosed: 0, crossChecked: 0, sourceMismatches: 0, secondOpinionDisagreements: 0 };
   const failures: { symbol: string; timeframe: string; error: string }[] = [];
   const stale: { symbol: string; timeframe: string; minutes: number }[] = [];
 
@@ -115,8 +122,8 @@ export async function runScan(opts: ScanOptions = {}) {
     const log = logger.child({ symbol: asset.symbol, timeframe });
     let candles: Candle[];
     let provider: string;
+    const preferred = item.users[0]?.settings.dataProviders.candleOrder;
     try {
-      const preferred = item.users[0]?.settings.dataProviders.candleOrder;
       const res = await syncRecentCandles(asset, timeframe, 600, preferred);
       candles = res.candles;
       provider = res.provider;
@@ -137,15 +144,37 @@ export async function runScan(opts: ScanOptions = {}) {
     }
 
     // Idempotency: one analysis per (asset, timeframe, closed candle).
-    let analysisRunId: string | null = null;
-    let alreadyDone = false;
-    if (quality.report.lastClosedOpenTime !== null) {
+    const lastOpen = quality.report.lastClosedOpenTime;
+    const runKey = lastOpen !== null ? { assetId_timeframe_candleOpenTime: { assetId: asset.id, timeframe, candleOpenTime: new Date(lastOpen) } } : null;
+    const existing = runKey ? await db().analysisRun.findUnique({ where: runKey, select: { id: true } }) : null;
+    let analysisRunId: string | null = existing?.id ?? null;
+    // Even when this candle was already analysed, re-evaluate users whose configuration changed since
+    // (new strategy/timeframe/asset, edited parameters, or a new strategy version).
+    let usersToEvaluate = !existing || opts.force ? item.users : await usersWithStaleConfigs(item, asset.id, timeframe);
+
+    // Cross-check against the other exchanges — only when an analysis will actually run (once per candle).
+    let others: OtherSource[] = [];
+    if (usersToEvaluate.length && lastOpen !== null && provider !== "database cache") {
+      others = await fetchOtherSources(asset, timeframe, provider, CROSS_CHECK_CANDLES, candleProviders(preferred));
+      const comparisons = others.map((o) =>
+        o.error ? { ...compareCandles(provider, quality.candles, o.source, [], lastOpen), error: o.error.slice(0, 200) } : compareCandles(provider, quality.candles, o.source, o.candles, lastOpen),
+      );
+      quality.report.crossSource = comparisons;
+      for (const c of comparisons) {
+        const issue = crossSourceIssue(c);
+        if (issue) quality.report.issues.push(issue);
+        if (c.verdict === "DISAGREE") log.warn("exchanges disagree on candle closes", { source: c.source, lastDiffPct: c.lastDiffPct, medianDiffPct: c.medianDiffPct });
+      }
+      quality.report.ok = !quality.report.issues.some((i) => i.severity === "blocking");
+      stats.crossChecked++;
+      if (comparisons.some((c) => c.verdict === "DISAGREE")) stats.sourceMismatches++;
+    }
+
+    if (runKey && !existing) {
       try {
         const run = await db().analysisRun.create({
           data: {
-            assetId: asset.id,
-            timeframe,
-            candleOpenTime: new Date(quality.report.lastClosedOpenTime),
+            ...runKey.assetId_timeframe_candleOpenTime,
             status: quality.report.ok ? "OK" : "NO_SIGNAL",
             dataQuality: quality.report as unknown as object,
             provider,
@@ -155,30 +184,45 @@ export async function runScan(opts: ScanOptions = {}) {
         analysisRunId = run.id;
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-          alreadyDone = true;
-          const existing = await db().analysisRun.findUnique({
-            where: { assetId_timeframe_candleOpenTime: { assetId: asset.id, timeframe, candleOpenTime: new Date(quality.report.lastClosedOpenTime) } },
-          });
-          analysisRunId = existing?.id ?? null;
+          // Another scan analysed this candle concurrently.
+          analysisRunId = (await db().analysisRun.findUnique({ where: runKey, select: { id: true } }))?.id ?? null;
+          if (!opts.force) usersToEvaluate = await usersWithStaleConfigs(item, asset.id, timeframe);
         } else throw e;
       }
+    } else if (existing && quality.report.crossSource) {
+      await db().analysisRun.update({ where: { id: existing.id }, data: { status: quality.report.ok ? "OK" : "NO_SIGNAL", dataQuality: quality.report as unknown as object } });
     }
 
-    // Even when this candle was already analysed, re-evaluate users whose configuration changed since
-    // (new strategy/timeframe/asset, edited parameters, or a new strategy version).
-    const usersToEvaluate = !alreadyDone || opts.force ? item.users : await usersWithStaleConfigs(item, asset.id, timeframe);
     if (usersToEvaluate.length) {
       stats.analysed++;
       const ind = new IndicatorCache(quality.candles);
+      // The other exchanges' series, gated the same way (only comparable if they include the same closed candle).
+      const seconds = others.map((o) => {
+        const q = o.error ? null : checkCandleQuality(o.candles, { timeframe, now: now.getTime(), minCandles: 30 });
+        return { source: o.source, raw: o.candles, q, sameCandle: q?.report.lastClosedOpenTime === lastOpen, ind: q ? new IndicatorCache(q.candles) : null };
+      });
       for (const u of usersToEvaluate) {
         const costs = costsFromSettings(u.settings);
         let results = u.configs.map((c) => analyzeLatest(c.def, candles, c.params, timeframe, { now: now.getTime(), costs, ind, quality }).result);
         results = annotateCrossStrategyConflicts(results);
-        for (const r of results) {
+        const secondOpinion = (r: SignalResult, i: number): SignalSourceCheck | null => {
+          if (!seconds.length) return null;
+          const c = u.configs[i];
+          const opinions: SourceOpinion[] = seconds.map((sec) => {
+            if (!sec.q || !sec.ind) return opinionFrom(sec.source, r.state, null, "UNAVAILABLE");
+            if (!sec.sameCandle) return opinionFrom(sec.source, r.state, null, "LAGGING");
+            const alt = analyzeLatest(c.def, sec.raw, c.params, timeframe, { now: now.getTime(), costs, ind: sec.ind, quality: sec.q }).result;
+            return opinionFrom(sec.source, r.state, alt.state);
+          });
+          return buildSourceCheck(provider, opinions, quality.report.crossSource ?? [], now);
+        };
+        for (const [i, r] of results.entries()) {
           if (r.state === "NO_SIGNAL") stats.noSignal++;
+          const sourceCheck = secondOpinion(r, i);
+          if (sourceCheck?.agreement === "NOT_CONFIRMED") stats.secondOpinionDisagreements++;
           const evidence = await latestEvidence(u.userId, asset.id, r.strategyId, timeframe);
           const pair = provider === "kraken" ? `${asset.symbol}USD` : `${asset.symbol}${asset.quote}`;
-          const out = await processResult(u.userId, asset, pair, r, analysisRunId, u.settings, evidence, now);
+          const out = await processResult(u.userId, asset, pair, r, analysisRunId, u.settings, evidence, now, sourceCheck);
           if (out.created) {
             stats.newSignals++;
             await autoTrackSignal(u.userId, u.settings, out.signal);
