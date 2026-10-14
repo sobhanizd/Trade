@@ -51,6 +51,9 @@ const schema = z.object({
 
   NEWS_RSS_FEEDS: z.string().default(""),
   NEWS_ENABLED: bool(true),
+
+  /** Demo installs only (e.g. GitHub Codespaces): "username:password" shown and prefilled on the login page. */
+  DEMO_LOGIN: optional,
 });
 
 export type Env = z.infer<typeof schema>;

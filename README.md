@@ -10,7 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="https://codespaces.new/sobhanizd/Trade?quickstart=1"><img src="https://github.com/codespaces/badge.svg" alt="Open the live dashboard in GitHub Codespaces" /></a>
+</p>
+
+<p align="center">
   <a href="https://sobhanizd.github.io/Trade/"><b>Website &amp; live price check</b></a> ·
+  <a href="#try-it-live">Live dashboard</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="#documentation">Docs</a>
@@ -145,6 +150,20 @@ Installs like an app on iPhone (Safari → Share → *Add to Home Screen*) and A
   results; it can never create, change or override a signal. Without an API key the app uses
   its built-in rule-by-rule explanations.
 
+## Try it live
+
+Click **[Open in GitHub Codespaces](https://codespaces.new/sobhanizd/Trade?quickstart=1)** to
+start your own private copy of the whole app (database, background worker and dashboard) in the
+cloud, free with a GitHub account. The first start takes about 5 minutes; a browser tab then
+opens on the login page with the demo account filled in:
+
+| Username | Password |
+|---|---|
+| `demo` | `cryptopilot-demo` |
+
+It uses real market data; the first scan takes about a minute after start-up. Stop the
+codespace when you are done (GitHub → Codespaces → ⋯ → Stop) so it doesn't use your free hours.
+
 ## Quick start
 
 ### With Docker (easiest)
@@ -170,6 +189,7 @@ git clone https://github.com/sobhanizd/Trade.git
 cd Trade
 npm install
 cp .env.example .env            # set DATABASE_URL and SESSION_SECRET
+npm run db:generate             # database client (needs DATABASE_URL)
 npx prisma migrate deploy && npm run db:seed
 npm run user:create -- --username alex      # asks for a password
 npm run build && npm start      # web app on http://localhost:3000

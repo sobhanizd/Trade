@@ -43,6 +43,7 @@ Edit `.env`: set `DATABASE_URL`, `SESSION_SECRET` and (optionally) the VAPID key
 ## 4. Migrate, seed, create your account
 
 ```bash
+npm run db:generate                               # database client (reads DATABASE_URL)
 npx prisma migrate deploy
 npm run db:seed                                   # default assets + strategy definitions
 npm run user:create -- --email you@example.com    # prompts for a password (min 12 chars)

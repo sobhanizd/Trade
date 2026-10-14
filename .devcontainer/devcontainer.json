@@ -1,0 +1,23 @@
+// Live demo in GitHub Codespaces (or any dev container): PostgreSQL + web app + background
+// worker with real market data and a ready demo account. Open it from the README / website
+// button: https://codespaces.new/sobhanizd/Trade?quickstart=1
+{
+  "name": "CryptoPilot AI — live demo",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "hostRequirements": { "cpus": 2, "memory": "4gb" },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "CryptoPilot", "onAutoForward": "openBrowser" }
+  },
+  "otherPortsAttributes": { "onAutoForward": "silent" },
+  // Install, create the database and demo account, build (once per codespace).
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  // Start the web app and the worker every time the codespace opens.
+  "postAttachCommand": { "app": "bash .devcontainer/start.sh" },
+  "customizations": {
+    "codespaces": { "openFiles": [".devcontainer/WELCOME.md"] },
+    "vscode": { "extensions": ["Prisma.prisma", "dbaeumer.vscode-eslint"] }
+  }
+}

@@ -21,7 +21,7 @@ export function LoginLangSwitch() {
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ demo }: { demo?: { username: string; password: string } | null }) {
   const t = useL(L);
   const locale = useLocale();
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +46,10 @@ export function LoginForm() {
     <Card>
       <form onSubmit={onSubmit} method="post" className="space-y-4" noValidate>
         <Field label={t.username} htmlFor="email">
-          <Input id="email" name="email" type="text" dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck={false} required />
+          <Input id="email" name="email" type="text" dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck={false} required defaultValue={demo?.username} />
         </Field>
         <Field label={t.password} htmlFor="password">
-          <Input id="password" name="password" type="password" dir="ltr" autoComplete="current-password" required />
+          <Input id="password" name="password" type="password" dir="ltr" autoComplete="current-password" required defaultValue={demo?.password} />
         </Field>
         {error && <Alert tone="error">{error}</Alert>}
         <Button type="submit" className="w-full" disabled={busy || !hydrated}>

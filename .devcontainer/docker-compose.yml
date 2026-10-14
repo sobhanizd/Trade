@@ -1,0 +1,21 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:24-bookworm
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    # Share the database's network so PostgreSQL is reachable at localhost:5432.
+    network_mode: service:db
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cryptopilot
+      POSTGRES_PASSWORD: cryptopilot
+      POSTGRES_DB: cryptopilot
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
