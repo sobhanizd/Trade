@@ -43,6 +43,11 @@
   .lang { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
   .gh { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--ink); color: var(--page); padding: 7px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; }
   .gh svg { width: 16px; height: 16px; }
+  .dash { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; background: var(--accent); color: var(--accent-ink); padding: 7px 14px; border-radius: 10px; font-size: 14px; font-weight: 700; }
+  .dash svg { width: 16px; height: 16px; }
+  .dash:hover, .gh:hover { filter: brightness(1.08); }
+  .demo-note { margin-top: 14px; font-size: 14px; color: var(--ink-2); max-width: 38em; }
+  .demo-note b { color: var(--ink); }
 
   /* hero */
   .hero { position: relative; padding: 72px 0 40px; }
@@ -154,6 +159,8 @@
     .grid, .flow { grid-template-columns: 1fr; }
     section { padding: 52px 0; }
     .gh span { display: none; }
+    .gh { padding: 7px 10px; }
+    header.nav .wrap { gap: 8px; }
     .brand span { font-size: 16px; }
     .phone { border-width: 4px; border-radius: 18px; }
   }
@@ -170,7 +177,11 @@
       <a href="#screens" data-i="navScreens">Screens</a>
       <a href="#run" data-i="navRun">Run it</a>
     </nav>
-    <button class="lang" id="lang" type="button" aria-label="Switch language">فارسی</button>
+    <button class="lang" id="lang" type="button" aria-label="Switch language / تغییر زبان">FA</button>
+    <a class="dash" href="https://codespaces.new/sobhanizd/Trade?quickstart=1" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span data-i="navDash">Dashboard</span>
+    </a>
     <a class="gh" href="https://github.com/sobhanizd/Trade">
       <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <span>GitHub</span>
@@ -186,9 +197,11 @@
         <h1 data-i="h1" data-html>One clear answer per coin: <span class="hl">BUY, WAIT or SELL.</span></h1>
         <p class="lead" data-i="lead">CryptoPilot watches real market data, checks every price on three independent sources, runs transparent written rules and explains the result in plain words. It never trades — no wallet, no keys, no orders. You decide.</p>
         <div class="ctas">
-          <a class="btn primary" href="https://github.com/sobhanizd/Trade" data-i="ctaCode">See the code on GitHub</a>
+          <a class="btn primary" href="https://codespaces.new/sobhanizd/Trade?quickstart=1" target="_blank" rel="noopener" data-i="ctaDemo">Open the live dashboard</a>
+          <a class="btn" href="https://github.com/sobhanizd/Trade" data-i="ctaCode">See the code on GitHub</a>
           <a class="btn" href="#run" data-i="ctaRun">Run it yourself</a>
         </div>
+        <p class="demo-note" data-i="demoNote" data-html>The live dashboard runs your own private copy for free in <b>GitHub Codespaces</b>: sign in with GitHub, wait about 5 minutes the first time, then log in with <b>demo</b> / <b>cryptopilot-demo</b> (already filled in).</p>
         <p class="fine" data-i="fine">Self-hosted: your coins, plans and settings stay on your own computer or server.</p>
       </div>
       <div class="shot">
@@ -264,6 +277,10 @@
       <div class="kicker" data-i="runKicker">Run it yourself</div>
       <h2 data-i="runTitle">Your own copy in a few minutes</h2>
       <p class="sub" data-i="runSub">CryptoPilot is a full web app with a database and a background worker, so it runs on your computer or a small server — not on a static website.</p>
+      <div class="card" style="padding:20px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between">
+        <div style="min-width:0;max-width:44em"><h3 style="margin:0 0 4px;font-size:16px" data-i="runBrowser">No install: try it in your browser</h3><p style="margin:0;color:var(--ink-2);font-size:15px" data-i="runBrowserText">GitHub Codespaces starts the whole app — database, worker and dashboard — in the cloud, free with a GitHub account.</p></div>
+        <a class="btn primary" href="https://codespaces.new/sobhanizd/Trade?quickstart=1" target="_blank" rel="noopener" data-i="ctaDemo">Open the live dashboard</a>
+      </div>
       <div class="two">
         <div>
           <h3 data-i="runDocker">With Docker (easiest)</h3>
@@ -281,6 +298,7 @@ docker compose run --rm worker \
 <pre>git clone https://github.com/sobhanizd/Trade.git
 cd Trade &amp;&amp; npm install
 cp .env.example .env   <span class="c"># DATABASE_URL, SESSION_SECRET</span>
+npm run db:generate
 npx prisma migrate deploy &amp;&amp; npm run db:seed
 npm run user:create -- --username alex
 npm run build &amp;&amp; npm start   <span class="c"># web app</span>
@@ -318,7 +336,8 @@ npm run worker               <span class="c"># 2nd terminal</span></pre>
       eyebrow: "Read-only crypto analysis · English & فارسی",
       h1: 'One clear answer per coin: <span class="hl">BUY, WAIT or SELL.</span>',
       lead: "CryptoPilot watches real market data, checks every price on three independent sources, runs transparent written rules and explains the result in plain words. It never trades — no wallet, no keys, no orders. You decide.",
-      ctaCode: "See the code on GitHub", ctaRun: "Run it yourself",
+      ctaCode: "See the code on GitHub", ctaRun: "Run it yourself", ctaDemo: "Open the live dashboard", navDash: "Dashboard",
+      demoNote: 'The live dashboard runs your own private copy for free in <b>GitHub Codespaces</b>: sign in with GitHub, wait about 5 minutes the first time, then log in with <b>demo</b> / <b>cryptopilot-demo</b> (already filled in).',
       fine: "Self-hosted: your coins, plans and settings stay on your own computer or server.",
       liveKicker: "Try it here", liveTitle: "Live right now: three sources, one price",
       liveSub: "This box asks Binance, Kraken and CoinGecko for today's prices, straight from your browser — the same check the app runs every 10 minutes before it trusts a number.",
@@ -369,16 +388,19 @@ npm run worker               <span class="c"># 2nd terminal</span></pre>
       runKicker: "Run it yourself", runTitle: "Your own copy in a few minutes",
       runSub: "CryptoPilot is a full web app with a database and a background worker, so it runs on your computer or a small server — not on a static website.",
       runDocker: "With Docker (easiest)", runNode: "With Node.js + PostgreSQL",
+      runBrowser: "No install: try it in your browser",
+      runBrowserText: "GitHub Codespaces starts the whole app — database, worker and dashboard — in the cloud, free with a GitHub account.",
       safeTitle: "It never trades — on purpose",
       safeText: "No wallet connection, no seed phrases, no exchange API keys and no order buttons. CryptoPilot is a decision-support tool: it explains, you decide and you place every order yourself. Nothing here is financial advice and no result is guaranteed — crypto prices can fall a lot.",
-      foot: "© 2026 Sobhan Izadi · All rights reserved", other: "فارسی",
+      foot: "© 2026 Sobhan Izadi · All rights reserved", other: "FA",
     },
     fa: {
       brand: "کریپتوپایلوت", navFeatures: "امکانات", navChecks: "بررسی داده", navScreens: "تصاویر", navRun: "اجرا",
       eyebrow: "تحلیل ارز دیجیتال، فقط خواندنی · فارسی و English",
       h1: 'برای هر ارز یک جواب روشن: <span class="hl">خرید، صبر یا فروش.</span>',
       lead: "کریپتوپایلوت داده‌های واقعی بازار را دنبال می‌کند، هر قیمت را با سه منبع مستقل بررسی می‌کند، قوانین نوشته‌شده و شفاف را اجرا می‌کند و نتیجه را به زبان ساده توضیح می‌دهد. هرگز معامله نمی‌کند — نه کیف پول، نه کلید، نه سفارش. تصمیم با شماست.",
-      ctaCode: "کد را در گیت‌هاب ببینید", ctaRun: "خودتان اجرا کنید",
+      ctaCode: "کد را در گیت‌هاب ببینید", ctaRun: "خودتان اجرا کنید", ctaDemo: "داشبورد زنده را باز کنید", navDash: "داشبورد",
+      demoNote: 'داشبورد زنده یک نسخهٔ خصوصی برای خودتان را رایگان در <b>GitHub Codespaces</b> اجرا می‌کند: با حساب گیت‌هاب وارد شوید، بار اول حدود ۵ دقیقه صبر کنید، بعد با <b class="ltr">demo</b> / <b class="ltr">cryptopilot-demo</b> وارد شوید (از قبل پر شده است).',
       fine: "روی سیستم خودتان اجرا می‌شود: ارزها، برنامه‌ها و تنظیمات شما روی کامپیوتر یا سرور خودتان می‌ماند.",
       liveKicker: "همین‌جا امتحان کنید", liveTitle: "همین الان: سه منبع، یک قیمت",
       liveSub: "این جدول قیمت‌های امروز را مستقیم از مرورگر شما از Binance، Kraken و CoinGecko می‌گیرد — همان بررسی‌ای که برنامه هر ۱۰ دقیقه پیش از اعتماد به یک عدد انجام می‌دهد.",
@@ -429,9 +451,11 @@ npm run worker               <span class="c"># 2nd terminal</span></pre>
       runKicker: "خودتان اجرا کنید", runTitle: "نسخهٔ خودتان در چند دقیقه",
       runSub: "کریپتوپایلوت یک برنامهٔ تحت وب کامل با پایگاه داده و برنامهٔ پس‌زمینه است، پس روی کامپیوتر یا یک سرور کوچک اجرا می‌شود — نه روی یک وب‌سایت ساده.",
       runDocker: "با Docker (ساده‌ترین)", runNode: "با Node.js و PostgreSQL",
+      runBrowser: "بدون نصب: در مرورگر امتحان کنید",
+      runBrowserText: "GitHub Codespaces کل برنامه را — پایگاه داده، برنامهٔ پس‌زمینه و داشبورد — در فضای ابری اجرا می‌کند، رایگان با یک حساب گیت‌هاب.",
       safeTitle: "هرگز معامله نمی‌کند — عمداً",
       safeText: "نه اتصال کیف پول، نه عبارت بازیابی، نه کلید API صرافی و نه دکمهٔ سفارش. کریپتوپایلوت ابزار کمک به تصمیم است: توضیح می‌دهد، شما تصمیم می‌گیرید و هر سفارش را خودتان ثبت می‌کنید. هیچ‌چیز این‌جا توصیهٔ مالی نیست و هیچ نتیجه‌ای تضمینی نیست — قیمت ارزها می‌تواند خیلی پایین بیاید.",
-      foot: "© ۲۰۲۶ سبحان ایزدی · همهٔ حقوق محفوظ است", other: "English",
+      foot: "© ۲۰۲۶ سبحان ایزدی · همهٔ حقوق محفوظ است", other: "EN",
     },
   };
 
