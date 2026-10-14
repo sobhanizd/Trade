@@ -1,0 +1,24 @@
+node_modules/
+.next/
+out/
+src/generated/
+.env
+.env.local
+.env.test.local
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+playwright-report/
+test-results/
+.DS_Store
+backups/
+.run/
+logs/
+# Built locally with scripts/build-launcher.sh (contains machine-specific signing)
+launcher/*.app/
+# Local secrets and personal data never leave this machine
+.env.*
+!.env.example
+*.dump
+*.sql.gz
+.claude/
