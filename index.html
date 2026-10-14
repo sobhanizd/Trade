@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CryptoPilot Launcher</title>
+<style>
+  :root { color-scheme: dark; --bg:#0d0d0d; --card:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --line:rgba(255,255,255,.1); --accent:#3987e5; --good:#0ca30c; --bad:#e66767; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100dvh; display:grid; place-items:center; background:var(--bg); color:var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; padding:16px; }
+  html[dir=rtl] body { font-family: "Vazirmatn", Tahoma, "Geeza Pro", system-ui, sans-serif; }
+  .card { width:100%; max-width:440px; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:28px; }
+  .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  h1 { font-size:22px; margin:0; }
+  .lang { background:none; border:1px solid var(--line); color:var(--ink2); border-radius:10px; padding:6px 12px; cursor:pointer; font:inherit; font-size:14px; }
+  .status { display:flex; align-items:center; gap:10px; margin:22px 0; padding:14px 16px; border-radius:14px; background:#262624; }
+  .dot { width:12px; height:12px; border-radius:50%; background:#888; flex:none; }
+  .on .dot { background:var(--good); box-shadow:0 0 0 4px rgba(12,163,12,.25); }
+  .off .dot { background:var(--bad); }
+  .btn { display:block; width:100%; text-align:center; text-decoration:none; padding:14px; margin-top:10px; border-radius:12px; font-weight:600; font-size:17px; border:1px solid var(--line); color:var(--ink); background:#262624; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#0b0b0b; }
+  .btn[aria-disabled=true] { opacity:.45; pointer-events:none; }
+  p.note { color:var(--ink2); font-size:13px; margin:18px 0 0; }
+  .hint { color:var(--ink2); font-size:14px; min-height:21px; margin-top:10px; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="top">
+    <h1 data-t="title">CryptoPilot AI</h1>
+    <button class="lang" id="lang" type="button">فارسی</button>
+  </div>
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">…</span></div>
+  <a class="btn primary" id="start" href="cryptopilot://start" data-t="start">Turn on server</a>
+  <a class="btn" id="open" href="http://localhost:3000/login" data-t="open">Open CryptoPilot</a>
+  <a class="btn" id="stop" href="cryptopilot://stop" data-t="stop">Turn off server</a>
+  <div class="hint" id="hint"></div>
+  <p class="note" data-t="note">The first time, your browser asks to open “CryptoPilot Launcher” — allow it. Starting takes about 10–20 seconds; the login page opens by itself.</p>
+</main>
+<script>
+  const T = {
+    en: { title: "CryptoPilot AI", start: "Turn on server", open: "Open CryptoPilot", stop: "Turn off server",
+          on: "Server is on", off: "Server is off", checking: "Checking…", starting: "Starting… please wait", stopping: "Turning off…",
+          note: "The first time, your browser asks to open “CryptoPilot Launcher” — allow it. Starting takes about 10–20 seconds; the login page opens by itself.", lang: "فارسی" },
+    fa: { title: "کریپتوپایلوت", start: "روشن کردن سرور", open: "باز کردن برنامه", stop: "خاموش کردن سرور",
+          on: "سرور روشن است", off: "سرور خاموش است", checking: "در حال بررسی…", starting: "در حال روشن شدن… لطفاً صبر کنید", stopping: "در حال خاموش شدن…",
+          note: "بار اول، مرورگر می‌پرسد که آیا «CryptoPilot Launcher» باز شود — اجازه بدهید. روشن شدن حدود ۱۰ تا ۲۰ ثانیه طول می‌کشد و صفحهٔ ورود خودش باز می‌شود.", lang: "English" },
+  };
+  let lang = (() => { try { return localStorage.getItem("cp_lang") || "en"; } catch { return "en"; } })();
+  let up = null, pending = null;
+  const $ = (id) => document.getElementById(id);
+  function render() {
+    const t = T[lang];
+    document.documentElement.lang = lang; document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+    document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t[el.dataset.t]));
+    $("lang").textContent = t.lang;
+    $("status").className = "status " + (up === null ? "" : up ? "on" : "off");
+    $("statusText").textContent = up === null ? t.checking : up ? t.on : t.off;
+    $("hint").textContent = pending === "start" && !up ? t.starting : pending === "stop" && up ? t.stopping : "";
+    $("open").setAttribute("aria-disabled", up ? "false" : "true");
+    $("start").setAttribute("aria-disabled", up ? "true" : "false");
+    $("stop").setAttribute("aria-disabled", up ? "false" : "true");
+  }
+  // A page opened from disk cannot read the server's API (browser security), but it can load an image from it.
+  function check() {
+    const img = new Image();
+    img.onload = () => { up = true; if (pending === "start") { pending = null; } render(); };
+    img.onerror = () => { up = false; if (pending === "stop") pending = null; render(); };
+    img.src = "http://localhost:3000/icons/icon-192.png?t=" + Date.now();
+  }
+  $("lang").onclick = () => { lang = lang === "en" ? "fa" : "en"; try { localStorage.setItem("cp_lang", lang); } catch {} render(); };
+  $("start").addEventListener("click", () => { pending = "start"; render(); });
+  $("stop").addEventListener("click", () => { pending = "stop"; render(); });
+  render(); check(); setInterval(check, 2000);
+</script>
+</body>
+</html>
